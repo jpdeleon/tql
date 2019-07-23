@@ -65,59 +65,75 @@ The generated figure shows 6 panels (see gallery below):
 * bottom, right: scatter plot of phase-folded light curve (unbinned: black; binned at 10-min: blue) at the derived best period. A transit model (red) template is superposed.
 
 Note that -ra, -dec & -tic & -n (--starname) can also be used. For example,
+```
 $ tql -tic=52368076 -v
 $ tql -ra=23.5935 -dec=-66.6763 -v
 $ tql -n=ngts-1 -v
 $ tql -n=wasp-4 -v
-
+```
 2. Same as in (1) but include pixel-level decorrelation (PLD; Luger et al. 2016) to remove systematics (PLD implementation in lightkurve package uses GP by default):
+```
 $ tql -toi=125.01 -v -pld
 $ tql -toi=125.01 -v -pld -no_gp (without gp)
+```
 Note that Self-Field Flattening (SFF; Vanderburg et al. 2014) is also available but may not work well in TESS case.
 
 3. Same as in (2) but using data from sector 2 (instead of the default sector 1 above):
+```
 $ tql -toi=125.01 -v -pld --sector=2
+```
 
 4. Same as in (3) but only show archival FOV image by adding -fov_only:
 $ tql -toi=125.01 -v -pld -fov_only
 In this case, archival DSS2 Blue and Red images will be shown.
 
 5. Same as in (3) but using specific photometric aperture:
+```
 $ tql -toi=125.01 -v -pld --aper_mask=pipeline (default)
 $ tql -toi=125.01 -v -pld --aper_mask=round --aper_radius=1 
 $ tql -toi=125.01 -v -pld --aper_mask=square --aper_radius=2
 $ tql -toi=125.01 -v -pld --aper_mask=percentile --percentile=90
 $ tql -toi=125.01 -v -pld --aper_mask=threshold
 $ tql -toi=125.01 -v -pld --aper_mask=all
+```
 Here -fov_only is useful to check if aperture includes or excludes nearby stars.
 
 6. To analyze multi-sector data, just add -a or --all_sectors argument:
+```
 $ tql -toi=125.01 -v -pld -a
 $ tql -toi=700.01 -v -pld --sectors 1 3 5 (download specific sectors not all)
+```
 Note that this does not show TESS tpf and archival FOV image
 
 7. To compare two different apertures:
+```
 $ tql -toi=125.01 -v -pld --aper_mask=square --aper_radii 1 2 
+```
 
 8. To analyze long cadence data (cutout from full-frame images)
+```
 $ tql -toi=125.01 -v --cadence=long -pld
+```
 
 9. Just add -s argument to save the figure (*.png) and the flattened and phase-folded light curves (*.txt), and add -o argument to specify the output location. I recommend to save the output in your directory:  -o=/ut2/<your_username>/
 
 ## Advanced usage
 If you would like to run tql on a list of TIC IDs (saved as new_tics.txt), then we have to make a batch script named run_tql_new_tics.batch. Its output files containing the plots (*.png) and corrected and phase-folded light curves (*.txt) will be saved in new_tics directory:
-
+```
 $ cat new_tics.txt | while read tic; do echo tql -tic=$tic -pld -s -o=../new_tics; done > run_tql_new_tics.batch
-
+```
 To test the Nth line of the batch script,
+```
 $ cat run_tql_new_tics.batch | sed -n Np | sh
-
+```
 To run all the lines in parallel using N cores (use -j<48 cores so that muscat-ut will not be very slow!),
+```
 $ cat run_tql_new_tics.batch | parallel -j N
-
+```
 After the batch script is done, we can collate or summarize the results of TLS in a .csv file:
+```
 $ tql -col -s -o=../new_tics
-
+```
 
 ## Notes
 * TOI are queried from [TESS Alerts](https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv) though some RA and DEC (e.g. TOI-144) are not precise enough to match a TPF using `lightkurve.search_targetpixelfile.`

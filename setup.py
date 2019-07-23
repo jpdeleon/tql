@@ -42,7 +42,7 @@ setup(
                     + "---------\n\n",
     package_dir={"tql": "tql"},
     scripts=['scripts/make_tql'],
-    include_package_data=True,
+    #include_package_data=True,
     keywords=['TESS','exoplanets','stars'],
     classifiers = [
         'Development Status :: 3 - Alpha',
