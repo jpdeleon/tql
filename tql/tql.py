@@ -37,7 +37,7 @@ if getpass.getuser()=='muscat':
 MISSION        = 'TESS'
 TESS_JD_offset = 2457000
 #Savitzky-Golay filter window size (odd)
-SG_FILTER_WINDOW_SC = 361    #short-cadence: 361x2min = 722min= 12 hr
+SG_FILTER_WINDOW_SC = 401    #short-cadence: 361x2min = 722min= 12 hr
 SG_FILTER_WINDOW_LC = 11     #long-cadence:  25x30min = 750min = 12.5 hr
 TESS_pix_scale      = 21*u.arcsec #/pix
 FFI_CUTOUT_SIZE     = 5          #pix
@@ -307,13 +307,14 @@ def ffi_cutout_to_lc(tpf, sap_mask='threshold', aper_radius=None, percentile=Non
             else:
                 cadence_mask_tpf = None
             npix = tpf.pipeline_mask.sum()
-            if sap_mask=='pipeline' and npix>20:
+            npix_lim = 24
+            if sap_mask=='pipeline' and npix>npix_lim:
                 #GP will create MemoryError so limit mask
-                msg = 'More than 20 pixels (npix={}) are used in PLD\n'.format(npix)
-                sap_mask, aper_radius = 'round', 3.0
+                msg = 'More than {} pixels (npix={}) are used in PLD\n'.format(npix_lim,npix)
+                sap_mask, aper_radius = 'square', 1
                 mask = parse_aperture_mask(tpf, sap_mask, aper_radius, verbose=verbose)
-                msg += 'Changing to round mask (r={}; npix={}) \
-                        to avoid memory error.\n'.format(aper_radius, mask.sum())
+                msg += 'Try changing to --aper_mask={} (s={}; npix={}) to avoid memory error.\n'.format(aper_mask, aper_radius, mask.sum())
+                raise ValueError(msg)
             if verbose:
                 logging.info(msg); print(msg)
             # pld = tpf.to_corrector(method='pld')
@@ -761,13 +762,13 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
                 cadence_mask_tpf = make_cadence_mask(tpf.time, period, t0,
                                                      t14, verbose=verbose)
                 npix = tpf.pipeline_mask.sum()
-                if sap_mask=='pipeline' and npix>20:
+                npix_lim = 24
+                if sap_mask=='pipeline' and npix>npix_lim:
                     #GP will create MemoryError so limit mask
-                    msg = 'More than 20 pixels (npix={}) are used in PLD\n'.format(npix)
-                    sap_mask, aper_radius = 'round', 3.0
+                    msg = 'More than {} pixels (npix={}) are used in PLD\n'.format(npix_lim,npix)
+                    sap_mask, aper_radius = 'square', 1.0
                     mask = parse_aperture_mask(tpf, sap_mask, aper_radius, verbose=verbose)
-                    msg += 'Changing to round mask (r={}; npix={}) \
-                            to avoid memory error.\n'.format(aper_radius, mask.sum())
+                    msg += 'Try changing to {} mask (s={}; npix={}) to avoid memory error.\n'.format(aper_mask, aper_radius, mask.sum())
                 if verbose:
                     logging.info(msg); print(msg)
                 # pld = tpf.to_corrector(method='pld')
@@ -2046,8 +2047,9 @@ def get_gaia_params(targ_coord,gaia_sources,verbose=True):
     '''Get rstar and teff
     '''
     gcoords=SkyCoord(ra=gaia_sources['ra'],dec=gaia_sources['dec'],unit='deg')
-    #FIXME: may not correspond to the host if binary
+    #FIXME: may not correspond to the host if binary or has confusing background star
     idx=targ_coord.separation(gcoords).argmin()
+    #import pdb; pdb.set_trace()
     star=gaia_sources.iloc[idx]
 
     if star['astrometric_excess_noise_sig']>2:
