@@ -1844,6 +1844,9 @@ def query_toi(toi=None, tic=None, clobber=True, outdir='../data', verbose=True):
     dl_link = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv'
     fp = join(outdir,'TOIs.csv')
 
+    if not exists(outdir):
+        os.makedirs(outdir)
+
     if not exists(fp) or clobber:
         d = pd.read_csv(dl_link)
         d.to_csv(fp, index=False)
@@ -1904,10 +1907,10 @@ def get_tois(clobber=True, outdir='../data', verbose=False,
     dl_link = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv'
     fp = join(outdir,'TOIs.csv')
     if not exists(outdir):
-        makedirs(outdir)
+        os.makedirs(outdir)
 
     if not exists(fp) or clobber:
-        d = pd.read_csv(dl_link)#, dtype={'RA': float, 'Dec': float})
+        d = pd.read_csv(dl_link) #, dtype={'RA': float, 'Dec': float})
         #remove False Positives
         if remove_FP:
             d = d[d['TFOPWG Disposition']!='FP']
