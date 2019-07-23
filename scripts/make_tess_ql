@@ -1,0 +1,226 @@
+#!/usr/bin/env python
+import os
+from os.path import join, exists
+import sys
+import argparse
+import time
+import numpy as np
+from tqdm import tqdm
+import pandas as pd
+from astropy.coordinates import SkyCoord
+from astropy import units as u
+import lightkurve as lk
+import getpass
+user = getpass.getuser()
+from astroplan import download_IERS_A
+
+try:
+    import kurasta
+except:
+    sys.path.append('..')
+    from kurasta import generate_QL, generate_all_lc, generate_FOV, generate_multi_aperture_lc, collate_tls_results, query_toi
+
+APER_MASK_DESC=['pipeline: mask suggested by the official pipeline',
+                'round: circular aperture mask',
+                'square: square aperture mask',
+                'all: all pixels within aperture',
+                'threshold: all pixels brighter than 3-sigma above the median flux'
+                'percentile: specific percentile of the flux distribution']
+APPHOT_METHOD_DESC=['sap: simple aperture photometry',
+                    'pdcsap: pre-data conditioning sap']
+
+parser = argparse.ArgumentParser(description="""
+                generate QL summary figure for TESS targets""",
+                usage='use "%(prog)s --help" for more information',
+                formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument('-ra', help='R.A. [deg]', type=float, default=None)
+parser.add_argument('-dec', help='Dec. [deg]', type=float, default=None)
+parser.add_argument('-n', '--name', help='star name in database (e.g. WASP-80)', type=str, default=None)
+parser.add_argument('-tic', help='TIC', type=int, default=None)
+parser.add_argument('-toi', help='TOI e.g. 125.01', type=float, default=None)
+parser.add_argument('-lc', help='lc pipeline (default=SAP):\n{}'.format(np.c_[APPHOT_METHOD_DESC]),
+    choices=['sap','pdcsap'], default='sap')
+parser.add_argument('--aper_mask',
+    help='photometric aperture mask (default=pipeline):\n{}'.format(np.c_[APER_MASK_DESC]),
+    choices=['pipeline','round','square','all','threshold','percentile'], default='pipeline')
+parser.add_argument('--sector', help='e.g. --sector 1; default is first available sector',
+    type=int, default=None)
+parser.add_argument('--sectors', help='e.g. --sectors 1 2 3',
+    nargs='*', type=int, default=None)
+parser.add_argument('-a', '--all_sectors', help='use data from all sectors (default=False)',
+    action='store_true', default=False)
+parser.add_argument('-r', '--aper_radius',
+    help='radius or side length (pix) for round or square aperture mask', type=int, default=None)
+parser.add_argument('-perc', '--percentile',
+    help='percentile to make aperture mask', type=float, default=None)
+parser.add_argument('-fov_only', help='plot FOV only', action='store_true', default=False)
+parser.add_argument('-pld', help='use Pixel-Level Decorrelation (PLD; default=False)',
+    action='store_true', default=False)
+parser.add_argument('-no_gp', help='do not use GP in PLD modeling (default=False)',
+    action='store_true', default=False)
+parser.add_argument('-sff', help='use Self-Field Flattening (SFF; default=False)',
+    action='store_true', default=False)
+parser.add_argument('--aper_radii', help='aperture mask radii (pix) for pixel-level-analysis',
+   nargs='*', type=int, default=None)
+parser.add_argument('--percentiles', help='percentiles for pixel-level-analysis',
+   nargs='*', type=float, default=None)
+parser.add_argument('-s', '--save', help='save figure (default=False)',
+    action='store_true', default=False)
+parser.add_argument('-o', '--outdir', help='output directory (e.g. .txt, .png)',
+    type=str, default=None)
+parser.add_argument('-c', '--clobber', help='clobber fits download (default=False)',
+    action='store_true', default=False)
+parser.add_argument('-v', '--verbose', help='verbose (default=False)',
+    action='store_true', default=False)
+parser.add_argument('-no_quality_mask', #breakpoints
+    help="""Do not apply data quality mask from Data Release Notes
+            [http://archive.stsci.edu/tess/tess_drn.html] (default=False)""",
+    action='store_true', default=False)
+parser.add_argument('--cadence', help='short (2-min) or long (30-min) cadence',
+    choices=['short','long'], default='short')
+parser.add_argument('-dl_iers', help='download iers (default=False)',
+    action='store_true', default=False)
+parser.add_argument('-col', '--collate_only', help='collate all TLS results into table (add -s to save as .csv)',
+    action='store_true', default=False)
+
+args = parser.parse_args()
+ra   = args.ra
+dec  = args.dec
+tic  = args.tic
+toi  = args.toi
+name  = args.name
+apphot_method = args.lc.lower()
+sap_mask = args.aper_mask
+aper_radius = args.aper_radius
+aper_radii = args.aper_radii
+percentile = args.percentile
+percentiles = args.percentiles
+cadence = args.cadence
+use_pld  = args.pld
+use_gp   = not args.no_gp
+use_sff  = args.sff
+fov_only = args.fov_only
+savefig  = args.save
+sector   = args.sector
+sectors   = args.sectors
+apply_data_quality_mask = not args.no_quality_mask
+all_sectors = args.all_sectors
+clobber  = args.clobber
+verbose  = args.verbose
+fitsoutdir = join('/home',user,'data/transit')
+figoutdir  = args.outdir
+dl_iers  = args.dl_iers
+collate_only  = args.collate_only
+
+MISSION = 'TESS'
+
+if __name__ == "__main__":
+    if use_pld==use_sff==True:
+        sys.exit('choose either use_pld or use_sff but not both')
+    if np.any([sap_mask=='round',sap_mask=='square']):
+        assert aper_radius or np.all(aper_radii), 'provide --aper_radius'
+    if isinstance(sectors,list) and len(sectors)<=1:
+        parser.error('Specify more than 1 sector when using --sectors.\n')
+    if aper_radius and np.all(aper_radii):
+        parser.error('Specify either --aper_radius or --aper_radii but not both.\n')
+    if all_sectors and np.all(aper_radii):
+        parser.error('Specify either -a or --aper_radii but not both.\n')
+    if sectors and np.all(aper_radii):
+        parser.error('Specify only 1 sector when using --aper_radii.\n')
+
+    if collate_only:
+        collate_tls_results(results_dir=figoutdir, save_csv=savefig)
+
+    else:
+        if dl_iers:
+            download_IERS_A()
+
+        if not exists(fitsoutdir):
+            os.makedirs(fitsoutdir)
+
+        if figoutdir:
+            if not exists(figoutdir):
+                os.makedirs(figoutdir)
+        else:
+            figoutdir='.'
+
+        if np.all([ra,dec]):
+            #search by given coordinates
+            targ_coord = SkyCoord(ra*u.deg, dec*u.deg)
+        elif tic is not None:
+            #search lk directly by tic
+            ticstr = 'TIC {}'.format(tic)
+            res = lk.search_targetpixelfile(ticstr, mission=MISSION, sector=sector)
+            if len(res)>0:
+                ra,dec = res.table.to_pandas()[['s_ra','s_dec']].values[0]
+                targ_coord = SkyCoord(ra=ra, dec=dec, unit=(u.degree, u.degree))
+            else:
+                sys.exit('check tic id\n')
+        elif name:
+            targ_coord = SkyCoord.from_name(name)
+        else:
+            #search by coordinates from tess alerts
+            if np.any([toi,tic]):
+                q = query_toi(toi=toi, tic=None, clobber=clobber,
+                                outdir='../data', verbose=False)
+                if len(q)>0:
+                    ra, dec = q[['RA','Dec']].values[0]
+                    tic = q['TIC ID'].values[0]
+                    targ_coord = SkyCoord(ra=ra, dec=dec, unit=(u.hourangle, u.degree))
+                else:
+                    #FIXME: how to get generic tic
+                    sys.exit('TIC/TOI not found!')
+            else:
+                sys.exit('Provide ra & dec or tic or toi or name')
+
+        if cadence=='long':
+            assert sap_mask!='pipeline', 'Use any mask except pipeline for FFI data.'
+            if np.any((sectors,all_sectors,aper_radii)):
+                raise NotImplementedError
+            else:
+                res = generate_QL(targ_coord,toi=toi,tic=tic,sector=sector,
+                        cadence=cadence,#cutout_size=cutout_size,
+                        use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
+                        apply_data_quality_mask=apply_data_quality_mask,
+                        apphot_method=apphot_method,sap_mask=sap_mask,
+                        aper_radius=aper_radius,percentile=percentile,
+                        clobber=clobber,fitsoutdir=fitsoutdir,figoutdir=figoutdir,
+                        savefig=savefig,verbose=verbose)
+
+        elif fov_only:
+            generate_FOV(targ_coord,tic=tic,toi=toi,sector=sector,
+                         apphot_method=apphot_method,sap_mask=sap_mask,
+                         aper_radius=aper_radius,percentile=percentile,
+                         fitsoutdir=fitsoutdir,figoutdir=figoutdir,savefig=savefig,
+                         clobber=clobber,verbose=verbose)
+
+        elif (isinstance(sectors,list) or all_sectors) and aper_radii is None:
+            res = generate_all_lc(targ_coord,toi=toi,tic=tic,sectors=sectors,
+                        apply_data_quality_mask=apply_data_quality_mask,
+                        use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
+                        apphot_method=apphot_method,
+                        aper_radius=aper_radius,percentile=percentile,
+                        sap_mask=sap_mask,clobber=clobber,fitsoutdir=fitsoutdir,
+                        figoutdir=figoutdir,savefig=savefig,verbose=verbose)
+
+        elif aper_radii is not None or percentiles is not None:
+            assert sap_mask in ['round','square','percentile'], 'use aper_mask={round,square}'
+            if sap_mask=='round' or sap_mask=='square':
+                assert len(aper_radii)==2, 'provide --aper_radii r1 r2'
+            if sap_mask=='percentile':
+                assert len(percentiles)==2, 'provide --percentiles p1 p2'
+            res = generate_multi_aperture_lc(targ_coord,aper_radii,
+                        tic=tic,toi=toi,sector=sector,percentiles=percentiles,
+                        use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
+                        fitsoutdir=fitsoutdir,figoutdir=figoutdir,
+                        apphot_method=apphot_method,sap_mask=sap_mask,
+                        savefig=savefig,clobber=clobber,verbose=verbose)
+
+        else:
+            res = generate_QL(targ_coord,toi=toi,tic=tic,sector=sector,
+                        use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
+                        apply_data_quality_mask=apply_data_quality_mask,
+                        apphot_method=apphot_method,sap_mask=sap_mask,
+                        aper_radius=aper_radius,percentile=percentile,
+                        clobber=clobber,fitsoutdir=fitsoutdir,figoutdir=figoutdir,
+                        savefig=savefig,verbose=verbose)
