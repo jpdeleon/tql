@@ -30,18 +30,18 @@ else:
         return r
 
 setup(
-    name='kurasta',
-    packages =['kurasta'],
+    name='tql',
+    packages =['tql'],
     version="0.1.1",
     author='Jerome de Leon',
     author_email = 'jpdeleon@astron.s.u-tokyo.ac.jp',
     url = 'https://github.com/jpdeleon/tql',
     license = ['GNU GPLv3'],
-    description ='Analyze TESS light curve and generate quick look plots',
+    description ='TESS Quick Look plot generator',
     long_description=rd("README.md") + "\n\n"
                     + "---------\n\n",
     package_dir={"tql": "tql"},
-    scripts=['scripts/make_QL_tess'],
+    scripts=['scripts/make_tql'],
     include_package_data=True,
     keywords=['TESS','exoplanets','stars'],
     classifiers = [
