@@ -116,7 +116,7 @@ MISSION = 'TESS'
 
 if __name__ == "__main__":
     if use_pld==use_sff==True:
-        sys.exit('choose either use_pld or use_sff but not both')
+        raise ValueError('choose either use_pld or use_sff but not both')
     if np.any([sap_mask=='round',sap_mask=='square']):
         assert aper_radius or np.all(aper_radii), 'provide --aper_radius'
     if isinstance(sectors,list) and len(sectors)<=1:
@@ -155,7 +155,7 @@ if __name__ == "__main__":
                 ra,dec = res.table.to_pandas()[['s_ra','s_dec']].values[0]
                 targ_coord = SkyCoord(ra=ra, dec=dec, unit=(u.degree, u.degree))
             else:
-                sys.exit('check tic id\n')
+                raise ValueError('check tic id\n')
         elif name:
             targ_coord = SkyCoord.from_name(name)
         else:
@@ -169,12 +169,12 @@ if __name__ == "__main__":
                     targ_coord = SkyCoord(ra=ra, dec=dec, unit=(u.hourangle, u.degree))
                 else:
                     #FIXME: how to get generic tic
-                    sys.exit('TIC/TOI not found!')
+                    raise ValueError('TIC/TOI not found!')
             else:
-                sys.exit('Provide ra & dec or tic or toi or name')
+                raise ValueError('Provide ra & dec or tic or toi or name')
 
         if cadence=='long':
-            assert sap_mask!='pipeline', 'Use any mask except pipeline for FFI data.'
+            assert sap_mask!='pipeline', '--aper_mask=pipeline (default) is not available for FFI data. Try {round, square, threshold, percentile}.'
             if np.any((sectors,all_sectors,aper_radii)):
                 raise NotImplementedError
             else:

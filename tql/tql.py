@@ -40,7 +40,7 @@ TESS_JD_offset = 2457000
 SG_FILTER_WINDOW_SC = 401    #short-cadence: 361x2min = 722min= 12 hr
 SG_FILTER_WINDOW_LC = 11     #long-cadence:  25x30min = 750min = 12.5 hr
 TESS_pix_scale      = 21*u.arcsec #/pix
-FFI_CUTOUT_SIZE     = 5          #pix
+FFI_CUTOUT_SIZE     = 8          #pix
 PHOTMETHOD     = 'aperture'  #or 'prf'
 # APPHOTMETHOD  =  'pipeline'  or 'all' or threshold --> uses tpf.extract_aperture_photometry
 SFF_CHUNKSIZE  = 27          #27 chunks for a 27-day baseline
@@ -55,7 +55,7 @@ PGMETHOD       = 'lombscargle' # 'boxleastsquares'
 IMAGING_SURVEY = 'DSS2 Red'
 FONTSIZE       = 16
 LOG_FILENAME   = r'kurasta.log'
-MAX_SECTORS    = 8           # sectors to analyze if target is osberved in multiple sectors
+MAX_SECTORS    = 5           # sectors to analyze if target is osberved in multiple sectors
 MULTISEC_BIN   = 10*u.min    # binning for very dense data (observed >MAX_SECTORS)
 YLIMIT       = (0.8,1.2)   # flux limits
 DEFAULT_U      = [0.4804, 0.1867] #quadratic limb darkening for a G2V star in the Kepler bandpass
@@ -113,7 +113,7 @@ def get_tpf(targ_coord, tic=None, apphot_method='sap',
         if sector:
             sector_idx = df['sequence_number'][df['sequence_number'].isin([sector])].index.tolist()
             if len(sector_idx)==0:
-                sys.exit('sector {} data is unavailable'.format(sector))
+                raise ValueError('sector {} data is unavailable'.format(sector))
             obsid = df.iloc[sector_idx]['obs_id'].values[0]
             ticid = int(df.iloc[sector_idx]['target_name'].values[0])
             fitsfilename = df.iloc[sector_idx]['productFilename'].values[0]
@@ -150,7 +150,7 @@ def get_tpf(targ_coord, tic=None, apphot_method='sap',
     else:
         msg='No tpf file found! Check FFI data using --cadence=long\n'
         logging.info(msg)
-        sys.exit(msg)
+        raise FileNotFoundError(msg)
 
 
 def get_ffi_cutout(targ_coord=None, tic=None, sector=None, #cutout_size=10,
@@ -199,7 +199,7 @@ def get_ffi_cutout(targ_coord=None, tic=None, sector=None, #cutout_size=10,
         if sector:
             sector_idx = df['sequence_number'][df['sequence_number'].isin([sector])].index.tolist()
             if len(sector_idx)==0:
-                sys.exit('sector {} data is unavailable'.format(sector))
+                raise ValueError('sector {} data is unavailable'.format(sector))
             target = df.iloc[sector_idx]['targetid'].values[0]
         else:
             sector_idx = 0
@@ -298,7 +298,7 @@ def ffi_cutout_to_lc(tpf, sap_mask='threshold', aper_radius=None, percentile=Non
     if use_pld or use_sff:
         msg = 'Applying systematics correction:\n'.format(use_gp)
         if use_pld:
-            msg += 'using PLD (gp={})\n'.format(use_gp)
+            msg += 'using PLD (gp={})'.format(use_gp)
             if verbose:
                 logging.info(msg); print(msg)
             if np.all([period, t0, t14]):
@@ -312,11 +312,12 @@ def ffi_cutout_to_lc(tpf, sap_mask='threshold', aper_radius=None, percentile=Non
                 #GP will create MemoryError so limit mask
                 msg = 'More than {} pixels (npix={}) are used in PLD\n'.format(npix_lim,npix)
                 sap_mask, aper_radius = 'square', 1
-                mask = parse_aperture_mask(tpf, sap_mask, aper_radius, verbose=verbose)
+                mask = parse_aperture_mask(tpf, sap_mask=sap_mask, aper_radius=aper_radius, 
+                                           percentile=percentile, verbose=verbose)
                 msg += 'Try changing to --aper_mask={} (s={}; npix={}) to avoid memory error.\n'.format(aper_mask, aper_radius, mask.sum())
+                if verbose:
+                    logging.info(msg); print(msg)
                 raise ValueError(msg)
-            if verbose:
-                logging.info(msg); print(msg)
             # pld = tpf.to_corrector(method='pld')
             pld = lk.PLDCorrector(tpf)
             corr_lc = pld.correct(cadence_mask=cadence_mask_tpf,
@@ -434,7 +435,7 @@ def get_pipeline_lc(targ_coord=None, tic=None, sector=None, flux_type='pdcsap',
         if sector:
             sector_idx = df['sequence_number'][df['sequence_number'].isin([sector])].index.tolist()
             if len(sector_idx)==0:
-                sys.exit('sector {} data is unavailable'.format(sector))
+                raise ValueError('sector {} data is unavailable'.format(sector))
             obsid = df.iloc[sector_idx]['obs_id'].values[0]
             ticid = int(df.iloc[sector_idx]['target_name'].values[0])
             fitsfilename = df.iloc[sector_idx]['productFilename'].values[0]
@@ -471,7 +472,7 @@ def get_pipeline_lc(targ_coord=None, tic=None, sector=None, flux_type='pdcsap',
     else:
         msg='No light curve file found!\n'
         logging.info(msg)
-        sys.exit(msg)
+        raise FileNotFoundError(msg)
 
 
 def compare_custom_pipeline_lc(targ_coord=None, tic=None, sector=None, flux_type='sap',
@@ -534,6 +535,7 @@ def run_tls_on_pdcsap(targ_coord=None, tic=None, sector=None, flux_type='pdcsap'
     model = transitleastsquares(t, fcor)
     try:
         ((u1, u2), Ms_tic, _, _, Rs_tic, _, _) = catalog.catalog_info(TIC_ID=int(ticid))
+        Teff_tic, logg_tic, _, _, _, _, _, _ = catalog.catalog_info_TIC(int(ticid))
         u1, u2 = DEFAULT_U if not np.all([u1, u2]) else [u1,u2]
         Rs_tic = 1.0 if Rs_tic is None else Rs_tic
         Ms_tic = 1.0 if Ms_tic is None else Ms_tic
@@ -600,7 +602,7 @@ def get_tpf(targ_coord, tic=None, apphot_method='sap',
         if sector:
             sector_idx = df['sequence_number'][df['sequence_number'].isin([sector])].index.tolist()
             if len(sector_idx)==0:
-                sys.exit('sector {} data is unavailable'.format(sector))
+                raise ValueError('sector {} data is unavailable'.format(sector))
             obsid = df.iloc[sector_idx]['obs_id'].values[0]
             ticid = int(df.iloc[sector_idx]['target_name'].values[0])
             fitsfilename = df.iloc[sector_idx]['productFilename'].values[0]
@@ -636,8 +638,7 @@ def get_tpf(targ_coord, tic=None, apphot_method='sap',
             return tpf
     else:
         msg='No tpf file found! Check FFI data using --cadence=long\n'
-        logging.info(msg)
-        #sys.exit(msg)
+        logging.info(msg); #sys.exit(msg)
         raise ValueError(msg)
 
 
@@ -704,7 +705,7 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
                            apply_data_quality_mask=apply_data_quality_mask,
                            verbose=verbose, fitsoutdir=fitsoutdir, return_df=True)
             sg_filter_window = SG_FILTER_WINDOW_LC
-            assert sap_mask!='pipeline', 'Use any aper_mask except pipeline for FFI data.'
+            assert sap_mask!='pipeline', '--aper_mask=pipeline (default) is not available for FFI data.'
         all_sectors = [int(i) for i in df['sequence_number'].values]
         if sector is None:
             sector = all_sectors[0]
@@ -756,7 +757,7 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         if use_pld or use_sff:
             msg = 'Applying systematics correction:\n'.format(use_gp)
             if use_pld:
-                msg += 'using PLD (gp={})\n'.format(use_gp)
+                msg += 'using PLD (gp={})'.format(use_gp)
                 if verbose:
                     logging.info(msg); print(msg)
                 cadence_mask_tpf = make_cadence_mask(tpf.time, period, t0,
@@ -767,7 +768,8 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
                     #GP will create MemoryError so limit mask
                     msg = 'More than {} pixels (npix={}) are used in PLD\n'.format(npix_lim,npix)
                     sap_mask, aper_radius = 'square', 1.0
-                    mask = parse_aperture_mask(tpf, sap_mask, aper_radius, verbose=verbose)
+                    mask = parse_aperture_mask(tpf, sap_mask=sap_mask, aper_radius=aper_radius, 
+                                               percentile=percentile, verbose=verbose)
                     msg += 'Try changing to {} mask (s={}; npix={}) to avoid memory error.\n'.format(aper_mask, aper_radius, mask.sum())
                 if verbose:
                     logging.info(msg); print(msg)
@@ -847,6 +849,7 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         #see defaults: https://github.com/hippke/tls/blob/master/transitleastsquares/tls_constants.py
         try:
             ((u1, u2), Ms_tic, _, _, Rs_tic, _, _) = catalog.catalog_info(TIC_ID=int(ticid))
+            Teff_tic, logg_tic, _, _, _, _, _, _ = catalog.catalog_info_TIC(int(ticid))
             u1, u2 = DEFAULT_U if not np.all([u1, u2]) else [u1,u2]
             Rs_tic = 1.0 if Rs_tic is None else Rs_tic
             Ms_tic = 1.0 if Ms_tic is None else Ms_tic
@@ -869,6 +872,7 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         results['u'] = [u1,u2]
         results['Rstar_tic'] = Rs_tic
         results['Mstar_tic'] = Ms_tic
+        results['Teff_tic'] = Teff_tic
 
         if verbose:
             print('Odd-Even transit mismatch: {:.2f} sigma\n'.format(results.odd_even_mismatch))
@@ -936,7 +940,7 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         nax.set_title("{0} ({1:.2f}\' x {1:.2f}\')".format(IMAGING_SURVEY,fov_rad.value),
                                                         fontsize=FONTSIZE)
         #get gaia stellar params
-        rstar, teff = get_gaia_params(targ_coord,gaia_sources,verbose=verbose)
+        Rs_gaia, Teff_gaia = get_gaia_params(targ_coord,gaia_sources,verbose=verbose)
 
         #----------ax2: lc plot----------
         i=2
@@ -1018,8 +1022,12 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         rprs= results['rp_rs']
         t14 = results.duration*u.day.to(u.hour)
         t0  = results['T0']
-
-        Rp = rprs*rstar*u.Rsun.to(u.Rearth)
+        try:
+            rstar = Rs_tic
+            Rp = rprs*rstar*u.Rsun.to(u.Rearth)
+        except:
+            rstar = Rs_gaia
+            Rp = rprs*rstar*u.Rsun.to(u.Rearth)
         if str(rstar)!='nan':
             text = 'Rp={:.2f} Re\nt14={:.2f} hr\nt0={:.6f}'.format(Rp, t14, t0)
         else:
@@ -1046,8 +1054,8 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         if results:
             results['tic'] = tpf.targetid
             results['sector'] = sector
-            results['Rs_gaia'] = rstar
-            results['Teff_gaia'] = teff
+            results['Rs_gaia'] = Rs_gaia
+            results['Teff_gaia'] = Teff_gaia
             results['Rp'] = Rp
             fp = join(figoutdir,'tic{}_s{}_{}_tls.hdf5'.format(tpf.targetid,sector,cad))
             if savefig:
@@ -1085,10 +1093,7 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         pl.close()
     except:
         print('Error occured:\n{}'.format(traceback.format_exc()))
-        print('\n-----------Some recommendations-----------\n')
-        print('Try -c if [buffer is too small for requested array]')
-        print('Try using -no_gp if [MemoryError: std::bad_alloc]')
-        print('Try --aper={pipeline,threshold,all} if tpf seems corrupted\n')
+        print_recommendations()
         #print('tpf size=(x,x) pix seems too big\n\n')
         logging.error(str(traceback.format_exc()))
     #save logs
@@ -1102,7 +1107,7 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
 def generate_all_lc(targ_coord,toi=None,tic=None,
                     use_pld=False,use_gp=True,use_sff=False,
                     apphot_method='sap',sap_mask='pipeline',
-                    aper_radius=None,sectors=None,
+                    aper_radius=None,percentile=None,sectors=None,
                     apply_data_quality_mask=True,
                     fitsoutdir='.',figoutdir='.',savefig=True,
                     clobber=False,verbose=True):
@@ -1240,7 +1245,8 @@ def generate_all_lc(targ_coord,toi=None,tic=None,
                     tpf = remove_bad_data(tpf,sector,verbose=verbose)
 
                 #make aperture mask
-                mask = parse_aperture_mask(tpf, sap_mask, aper_radius, verbose=verbose)
+                mask = parse_aperture_mask(tpf, sap_mask=sap_mask, 
+                       aper_radius=aper_radius, percentile=percentile, verbose=verbose)
 
                 tpfs.append(tpf)
                 masks.append(mask)
@@ -1301,7 +1307,7 @@ def generate_all_lc(targ_coord,toi=None,tic=None,
                                                             fontsize=FONTSIZE)
 
             #get gaia stellar params
-            rstar, teff = get_gaia_params(targ_coord,gaia_sources,verbose=verbose)
+            Rs_gaia, Teff_gaia = get_gaia_params(targ_coord,gaia_sources,verbose=verbose)
 
             lcs = []
             corr_lcs = []
@@ -1447,6 +1453,7 @@ def generate_all_lc(targ_coord,toi=None,tic=None,
             model = transitleastsquares(t, f)
             try:
                 ((u1, u2), Ms_tic, _, _, Rs_tic, _, _) = catalog.catalog_info(TIC_ID=int(ticid))
+                Teff_tic, logg_tic, _, _, _, _, _, _ = catalog.catalog_info_TIC(int(ticid))
                 u1, u2 = DEFAULT_U if not np.all([u1, u2]) else [u1,u2]
                 Rs_tic = 1.0 if Rs_tic is None else Rs_tic
                 Ms_tic = 1.0 if Ms_tic is None else Ms_tic
@@ -1471,6 +1478,7 @@ def generate_all_lc(targ_coord,toi=None,tic=None,
             results['u'] = [u1,u2]
             results['Rstar_tic'] = Rs_tic
             results['Mstar_tic'] = Ms_tic
+            results['Teff_tic'] = Teff_tic
 
             if verbose:
                 #FIXME: compare period from TESS alerts
@@ -1577,22 +1585,13 @@ def generate_all_lc(targ_coord,toi=None,tic=None,
             #get gaia stellar params
             gaia_sources = Catalogs.query_region(targ_coord, radius=5*u.arcsec,
                                         catalog="Gaia", version=2).to_pandas()
-            gcoords=SkyCoord(ra=gaia_sources['ra'],dec=gaia_sources['dec'],unit='deg')
-            idx=targ_coord.separation(gcoords).argmin()
-            star=gaia_sources.iloc[idx]
-            if star['astrometric_excess_noise_sig']>2:
-                print('The target has significant astrometric excess noise: {:.2f}\n'.format(star['astrometric_excess_noise_sig']))
-            rstar = star['radius_val']
-            rstar_lo = rstar-star['radius_percentile_lower']
-            rstar_hi = star['radius_percentile_upper']-rstar
-            teff = star['teff_val']
-            teff_lo = teff-star['teff_percentile_lower']
-            teff_hi = star['teff_percentile_upper']-teff
-            if verbose:
-                print('Rstar={:.2f} +{:.2f} -{:.2f}'.format(rstar,rstar_lo,rstar_hi))
-                print('Teff={:.0f} +{:.0f} -{:.0f}\n'.format(teff,teff_lo,teff_hi))
-
-            Rp = rprs*rstar*u.Rsun.to(u.Rearth)
+            Rs_gaia, Teff_gaia = get_gaia_params(targ_coord,gaia_sources,verbose=verbose)
+            try:
+                rstar, teff = Rs_tic, Teff_tic
+                Rp = rprs*rstar*u.Rsun.to(u.Rearth)
+            except:
+                rstar, teff = Rs_gaia, Teff_gaia
+                Rp = rprs*rstar*u.Rsun.to(u.Rearth)
             if str(rstar)!='nan':
                text = 'Rp={:.2f} Re\nt14={:.2f} hr\nt0={:.6f}'.format(Rp, t14, t0)
             else:
@@ -1615,8 +1614,8 @@ def generate_all_lc(targ_coord,toi=None,tic=None,
                 #append info to tls results
                 results['tic'] = ticid
                 results['sector'] = all_sectors
-                results['Rs'] = rstar
-                results['Teff'] = teff
+                results['Rs_gaia'] = Rs_gaia
+                results['Teff_gaia'] = Teff_gaia
                 results['Rp'] = Rp
 
                 fp = join(figoutdir,'tic{}_s{}_tls.hdf5'.format(tpf.targetid,'-'.join(all_sectors)))
@@ -1662,10 +1661,7 @@ def generate_all_lc(targ_coord,toi=None,tic=None,
                 print(msg)
     except:
         print('Error occured:\n{}'.format(traceback.format_exc()))
-        print('\n-----------Some recommendations-----------\n')
-        print('Try using -no_gp if [MemoryError: std::bad_alloc]')
-        print('Try -c if [buffer is too small for requested array]')
-        print('Try --aper={pipeline,threshold,all} if tpf seems corrupted\n\n')
+        print_recommendations()
         logging.error(str(traceback.format_exc()))
     #save logs
     logfile = open(LOG_FILENAME, 'rt')
@@ -1813,11 +1809,8 @@ def generate_FOV(targ_coord,tic=None,toi=None,sector=None,
 
     except:
         print('Error occured:\n{}'.format(traceback.format_exc()))
-        print('\n-----------Some recommendations-----------\n')
-        print('Try using -no_gp if [MemoryError: std::bad_alloc]')
-        print('Try -c if [buffer is too small for requested array]')
-        print('Try --aper={pipeline,threshold,all} if tpf seems corrupted\n')
-
+        print_recommendations()
+        logging.error(str(traceback.format_exc()))
 
 def query_toi(toi=None, tic=None, clobber=True, outdir='../data', verbose=True):
     """Query TOI from TOI list
@@ -2044,8 +2037,7 @@ def plot_gaia_sources(targ_coord, gaia_sources, survey='DSS2 Blue', verbose=True
 
 
 def get_gaia_params(targ_coord,gaia_sources,verbose=True):
-    '''Get rstar and teff
-    '''
+    '''Get rstar and teff'''
     gcoords=SkyCoord(ra=gaia_sources['ra'],dec=gaia_sources['dec'],unit='deg')
     #FIXME: may not correspond to the host if binary or has confusing background star
     idx=targ_coord.separation(gcoords).argmin()
@@ -2136,7 +2128,7 @@ def collate_tls_results(results_dir,save_csv=False):
         results_dir = '.'
     colnames='tic sector snr SDE FAP rp_rs period T0 duration depth_mean_odd depth_mean_even chi2 transit_count'.split()
     if not exists(results_dir):
-        sys.exit('{} does not exist!'.format(results_dir))
+        raise FileNotFoundError('{} does not exist!'.format(results_dir))
     fl = glob(join(results_dir,'*.hdf5'))
     if len(fl)>0:
         pars = []
@@ -2153,7 +2145,7 @@ def collate_tls_results(results_dir,save_csv=False):
             #SDE=9 == FP rate<1e−4 in the limiting case of white noise
             print(df)
     else:
-        sys.exit('No .hdf5 files found in {}\n'.format(results_dir))
+        raise FileNotFoundError('No .hdf5 files found in {}\n'.format(results_dir))
     return df
 
 def binned(a, binsize, fun=np.mean):
@@ -2488,12 +2480,11 @@ def generate_multi_aperture_lc(targ_coord,aper_radii=None,tic=None,toi=None,sect
         #query gaia
         gaia_sources = Catalogs.query_region(targ_coord, radius=fov_rad,
                                     catalog="Gaia", version=2).to_pandas()
+        #get gaia stellar params
+        Rs_gaia, Teff_gaia = get_gaia_params(targ_coord,gaia_sources,verbose=verbose)
         #plot gaia sources on archival image
         nax, archival_img = plot_gaia_sources(targ_coord, gaia_sources, verbose=verbose,
                              survey='DSS2 Blue', fov_rad=fov_rad, reticle=True, ax=ax2)
-
-        #get gaia stellar params
-        rstar, teff = get_gaia_params(targ_coord,gaia_sources,verbose=verbose)
 
         lcs = []
         corr_lcs = []
@@ -2616,6 +2607,7 @@ def generate_multi_aperture_lc(targ_coord,aper_radii=None,tic=None,toi=None,sect
             #see defaults: https://github.com/hippke/tls/blob/master/transitleastsquares/tls_constants.py
             try:
                 ((u1, u2), Ms_tic, _, _, Rs_tic, _, _) = catalog.catalog_info(TIC_ID=int(ticid))
+                Teff_tic, logg_tic, _, _, _, _, _, _ = catalog.catalog_info_TIC(int(ticid))
                 u1, u2 = DEFAULT_U if not np.all([u1, u2]) else [u1,u2]
                 Rs_tic = 1.0 if Rs_tic is None else Rs_tic
                 Ms_tic = 1.0 if Ms_tic is None else Ms_tic
@@ -2628,9 +2620,10 @@ def generate_multi_aperture_lc(targ_coord,aper_radii=None,tic=None,toi=None,sect
                     print('Using u1={:.4f},u2={:.4f} based on TIC catalog\n'.format(u1,u2))
 
             results = model.power(u=[u1,u2], limb_dark='quadratic')
-            # results['u'] = [u1,u2]
-            # results['Rstar_tic'] = Rs_tic
-            # results['Mstar_tic'] = Ms_tic
+            results['u'] = [u1,u2]
+            results['Rstar_tic'] = Rs_tic
+            results['Mstar_tic'] = Ms_tic
+            results['Teff_tic'] = Teff_tic
 
             if verbose:
                 print('Odd-Even transit mismatch: {:.2f} sigma\n'.format(results.odd_even_mismatch))
@@ -2646,7 +2639,7 @@ def generate_multi_aperture_lc(targ_coord,aper_radii=None,tic=None,toi=None,sect
             else:
                 msg='TLS period and t0 search did not yield useful results.\n'
                 logging.info(msg)
-                sys.exit(msg)
+                raise ValueError(msg)
 
             #-----folded lc-----#
             ax = fig.add_subplot(axn)
@@ -2674,7 +2667,13 @@ def generate_multi_aperture_lc(targ_coord,aper_radii=None,tic=None,toi=None,sect
                     ax.set_ylim(*gcas[0])
             t14 = results.duration*u.day.to(u.hour)
             t0  = results['T0']
-            Rp = rprs*rstar*u.Rsun.to(u.Rearth)
+            try:
+                rstar, teff = Rs_tic, Teff_tic
+                Rp = rprs*rstar*u.Rsun.to(u.Rearth)
+            except:
+                rstar, teff = Rs_gaia, Teff_gaia
+                Rp = rprs*rstar*u.Rsun.to(u.Rearth)
+
             if str(rstar)!='nan':
                 text = 'Rp={:.3f} Re\nt14={:.2f} hr\nt0={:.6f}'.format(Rp, t14, t0)
             else:
@@ -2713,10 +2712,7 @@ def generate_multi_aperture_lc(targ_coord,aper_radii=None,tic=None,toi=None,sect
 
     except:
         print('Error occured:\n{}'.format(traceback.format_exc()))
-        print('\n-----------Some recommendations-----------\n')
-        print('Try -c if [buffer is too small for requested array]')
-        print('Try using -no_gp if [MemoryError: std::bad_alloc]')
-        print('Try --aper={pipeline,threshold,all} if tpf seems corrupted\n')
+        print_recommendations()
 
 def getDistance(x1, y1, x2, y2):
     '''Get pythagorean distance'''
@@ -2752,3 +2748,10 @@ def isInside(border, target):
     if(abs(round(degree) - 360) <= 3):
         return True
     return False
+
+def print_recommendations():
+    print('\n-----------Some recommendations-----------\n')
+    print('Try -c if [buffer is too small for requested array] or to update TOI list')
+    print('Try using -no_gp if [MemoryError: std::bad_alloc]')
+    print('Try --aper={pipeline,threshold,percentile,all} if [assert k <= min(m, n)] or tpf seems corrupted\n')
+

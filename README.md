@@ -19,25 +19,29 @@ optional arguments:
   -lc {sap,pdcsap}      lc pipeline (default=SAP):
                         [['sap: simple aperture photometry']
                          ['pdcsap: pre-data conditioning sap']]
-  --aper_mask {pipeline,round,square,all,threshold}
+  --aper_mask {pipeline,round,square,all,threshold,percentile}
                         photometric aperture mask (default=pipeline):
                         [['pipeline: mask suggested by the official pipeline']
                          ['round: circular aperture mask']
                          ['square: square aperture mask']
                          ['all: all pixels within aperture']
-                         ['threshold: all pixels brighter than 3-sigma above the median flux']]
+                         ['threshold: all pixels brighter than 3-sigma above the median fluxpercentile: specific percentile of the flux distribution']]
   --sector SECTOR       e.g. --sector 1; default is first available sector
   --sectors [SECTORS [SECTORS ...]]
                         e.g. --sectors 1 2 3
   -a, --all_sectors     use data from all sectors (default=False)
   -r APER_RADIUS, --aper_radius APER_RADIUS
                         radius or side length (pix) for round or square aperture mask
+  -perc PERCENTILE, --percentile PERCENTILE
+                        percentile to make aperture mask
   -fov_only             plot FOV only
   -pld                  use Pixel-Level Decorrelation (PLD; default=False)
   -no_gp                do not use GP in PLD modeling (default=False)
   -sff                  use Self-Field Flattening (SFF; default=False)
   --aper_radii [APER_RADII [APER_RADII ...]]
                         aperture mask radii (pix) for pixel-level-analysis
+  --percentiles [PERCENTILES [PERCENTILES ...]]
+                        percentiles for pixel-level-analysis
   -s, --save            save figure (default=False)
   -o OUTDIR, --outdir OUTDIR
                         output directory (e.g. .txt, .png)
@@ -45,6 +49,8 @@ optional arguments:
   -v, --verbose         verbose (default=False)
   -no_quality_mask      Do not apply data quality mask from Data Release Notes
                                     [http://archive.stsci.edu/tess/tess_drn.html] (default=False)
+  --cadence {short,long}
+                        short (2-min) or long (30-min) cadence
   -dl_iers              download iers (default=False)
   -col, --collate_only  collate all TLS results into table (add -s to save as .csv)
 ```
