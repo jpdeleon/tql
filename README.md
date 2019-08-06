@@ -3,7 +3,7 @@ TESS Quick Look plot generator
 
 ## Usage
 ```shell
-$ ./make_tql --help
+$ make_tql --help
 
 usage: use "make_tql --help" for more information
 
@@ -60,65 +60,65 @@ optional arguments:
 
 ## Examples
 1. Show quick look plots of TOI=125 (with details printed in the terminal using -v)
-$ tql -toi=125.01 -v
+$ make_tql -toi=125.01 -v
 
 The generated figure shows 6 panels (see gallery below):
 * top, left: TESS target pixel file (a frame taken at the beginning of the observation) with superposed photometric aperture (pink)
 * top, right: archival (DSS2 Red) image with superposed TESS aperture (yellow, same as the pink aperture in the tpf image) and nearby Gaia sources (red squares)
-* middle, left: (a) raw TESS light curve produced using the given aperture if use_pld=use_sff=False [no systematics correction is used]; (b) corrected light curve otherwise; obvious outliers and bad pixels flagged in the fits file are removed 
-* middle, right: either (a) corrected light curve if either PLD or SFF correction is used or (b) flattened light curve otherwise. To remove the long time-scale variability of the light curve, a Savitzky-Golay filter (red curve) is used 
+* middle, left: (a) raw TESS light curve produced using the given aperture if use_pld=use_sff=False [no systematics correction is used]; (b) corrected light curve otherwise; obvious outliers and bad pixels flagged in the fits file are removed
+* middle, right: either (a) corrected light curve if either PLD or SFF correction is used or (b) flattened light curve otherwise. To remove the long time-scale variability of the light curve, a Savitzky-Golay filter (red curve) is used
 * bottom, left: periodogram using transit least squares (TLS; Hippke et al. 2019). The best period is highlighted in dark blue and the vertical lines are harmonics of the period.
 * bottom, right: scatter plot of phase-folded light curve (unbinned: black; binned at 10-min: blue) at the derived best period. A transit model (red) template is superposed.
 
 Note that -ra, -dec & -tic & -n (--starname) can also be used. For example,
 ```
-$ tql -tic=52368076 -v
-$ tql -ra=23.5935 -dec=-66.6763 -v
-$ tql -n=ngts-1 -v
-$ tql -n=wasp-4 -v
+$ make_tql -tic=52368076 -v
+$ make_tql -ra=23.5935 -dec=-66.6763 -v
+$ make_tql -n=ngts-1 -v
+$ make_tql -n=wasp-4 -v
 ```
 2. Same as in (1) but include pixel-level decorrelation (PLD; Luger et al. 2016) to remove systematics (PLD implementation in lightkurve package uses GP by default):
 ```
-$ tql -toi=125.01 -v -pld
-$ tql -toi=125.01 -v -pld -no_gp (without gp)
+$ make_tql -toi=125.01 -v -pld
+$ make_tql -toi=125.01 -v -pld -no_gp (without gp)
 ```
 Note that Self-Field Flattening (SFF; Vanderburg et al. 2014) is also available but may not work well in TESS case.
 
 3. Same as in (2) but using data from sector 2 (instead of the default sector 1 above):
 ```
-$ tql -toi=125.01 -v -pld --sector=2
+$ make_tql -toi=125.01 -v -pld --sector=2
 ```
 
 4. Same as in (3) but only show archival FOV image by adding -fov_only:
-$ tql -toi=125.01 -v -pld -fov_only
+$ make_tql -toi=125.01 -v -pld -fov_only
 In this case, archival DSS2 Blue and Red images will be shown.
 
 5. Same as in (3) but using specific photometric aperture:
 ```
-$ tql -toi=125.01 -v -pld --aper_mask=pipeline (default)
-$ tql -toi=125.01 -v -pld --aper_mask=round --aper_radius=1 
-$ tql -toi=125.01 -v -pld --aper_mask=square --aper_radius=2
-$ tql -toi=125.01 -v -pld --aper_mask=percentile --percentile=90
-$ tql -toi=125.01 -v -pld --aper_mask=threshold
-$ tql -toi=125.01 -v -pld --aper_mask=all
+$ make_tql -toi=125.01 -v -pld --aper_mask=pipeline (default)
+$ make_tql -toi=125.01 -v -pld --aper_mask=round --aper_radius=1
+$ make_tql -toi=125.01 -v -pld --aper_mask=square --aper_radius=2
+$ make_tql -toi=125.01 -v -pld --aper_mask=percentile --percentile=90
+$ make_tql -toi=125.01 -v -pld --aper_mask=threshold
+$ make_tql -toi=125.01 -v -pld --aper_mask=all
 ```
 Here -fov_only is useful to check if aperture includes or excludes nearby stars.
 
 6. To analyze multi-sector data, just add -a or --all_sectors argument:
 ```
-$ tql -toi=125.01 -v -pld -a
-$ tql -toi=700.01 -v -pld --sectors 1 3 5 (download specific sectors not all)
+$ make_tql -toi=125.01 -v -pld -a
+$ make_tql -toi=700.01 -v -pld --sectors 1 3 5 (download specific sectors not all)
 ```
 Note that this does not show TESS tpf and archival FOV image
 
 7. To compare two different apertures:
 ```
-$ tql -toi=125.01 -v -pld --aper_mask=square --aper_radii 1 2 
+$ make_tql -toi=125.01 -v -pld --aper_mask=square --aper_radii 1 2
 ```
 
 8. To analyze long cadence data (cutout from full-frame images)
 ```
-$ tql -toi=125.01 -v --cadence=long -pld
+$ make_tql -toi=125.01 -v --cadence=long -pld
 ```
 
 9. Just add -s argument to save the figure (*.png) and the flattened and phase-folded light curves (*.txt), and add -o argument to specify the output location. I recommend to save the output in your directory:  -o=/ut2/<your_username>/
@@ -138,7 +138,7 @@ $ cat run_tql_new_tics.batch | parallel -j N
 ```
 After the batch script is done, we can collate or summarize the results of TLS in a .csv file:
 ```
-$ tql -col -s -o=../new_tics
+$ make_tql -col -s -o=../new_tics
 ```
 
 ## Notes
