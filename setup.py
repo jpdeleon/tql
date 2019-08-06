@@ -51,5 +51,5 @@ setup(
         'Programming Language :: Python'
         ],
     install_requires = ['lightkurve','astropy','astroquery','astroplan','tqdm',
-        'numpy','matplotlib','pandas','scipy','fbpca'],
+        'numpy','matplotlib','pandas','scipy','fbpca', 'deepdish'],
 )
