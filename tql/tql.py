@@ -2758,14 +2758,13 @@ def print_recommendations():
 
 def catch_IERS_warning():
     import warnings
-
     # Set up the thing to catch the warning (and potentially others)
     with warnings.catch_warnings(record=True) as w:
-    # import the modules
-    from astroplan import Observer
-    from astroplan import OldEarthOrientationDataWarning
-    #One want to know aout the first time a warning is thrown
-    warnings.simplefilter("once")
+        # import the modules
+        from astroplan import Observer
+        from astroplan import OldEarthOrientationDataWarning
+        #One want to know aout the first time a warning is thrown
+        warnings.simplefilter("once")
 
     #Look through all the warnings to see if one is OldEarthOrientationDataWarning,
     # update the table if it is.
