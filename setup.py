@@ -50,6 +50,6 @@ setup(
         'Topic :: Scientific/Engineering',
         'Programming Language :: Python'
         ],
-    install_requires = ['lightkurve','astropy','astroquery','astroplan','tqdm','transitleastsquares',
-        'numpy','matplotlib','pandas','scipy','fbpca', 'deepdish', 'eleanor'],
+    install_requires = ['lightkurve','eleanor','astropy','transitleastsquares',
+        'fbpca','photutils','astroquery','astroplan','tqdm','deepdish'],
 )
