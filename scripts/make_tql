@@ -76,7 +76,7 @@ parser.add_argument('-no_quality_mask', #breakpoints
     help="""Do not apply data quality mask from Data Release Notes
             [http://archive.stsci.edu/tess/tess_drn.html] (default=False)""",
     action='store_true', default=False)
-parser.add_argument('--cadence', help='short (2-min) or long (30-min) cadence',
+parser.add_argument('--cadence', help='use short (2-min) or long (30-min) cadence data',
     choices=['short','long'], default='short')
 parser.add_argument('-dl_iers', help='download iers (default=False)',
     action='store_true', default=False)

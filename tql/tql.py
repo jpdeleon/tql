@@ -2755,3 +2755,26 @@ def print_recommendations():
     print('Try using -no_gp if [MemoryError: std::bad_alloc]')
     print('Try --aper={pipeline,threshold,percentile,all} if [assert k <= min(m, n)] or tpf seems corrupted\n')
 
+
+def catch_IERS_warning():
+    import warnings
+
+    # Set up the thing to catch the warning (and potentially others)
+    with warnings.catch_warnings(record=True) as w:
+    # import the modules
+    from astroplan import Observer
+    from astroplan import OldEarthOrientationDataWarning
+    #One want to know aout the first time a warning is thrown
+    warnings.simplefilter("once")
+
+    #Look through all the warnings to see if one is OldEarthOrientationDataWarning,
+    # update the table if it is.
+    for i in w:
+        if i.category == OldEarthOrientationDataWarning:
+            # This new_mess statement isn't really needed I just didn't want to print
+            #  all the information that is produce in the warning.
+            new_mess = '.'.join(str(i.message).split('.')[:3])
+            print('WARNING:',new_mess)
+            print('Updating IERS bulletin table...')
+            from astroplan import download_IERS_A
+            download_IERS_A()
