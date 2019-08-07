@@ -153,6 +153,7 @@ $ make_tql -col -s -o=../new_tics
   - other generic periodogram can be used e.g. [BLS](https://docs.lightkurve.org/api/periodogram.html?highlight=periodogram)
 
 ## To do
+* implement [`wotan`](https://ui.adsabs.harvard.edu/abs/2019arXiv190600966H/abstract)
 * find additional planets by iterative masking of transit
 * implement vetting procedure in sec 2.3 of [Heller+2019](https://arxiv.org/pdf/1905.09038.pdf)
   - SDE>9

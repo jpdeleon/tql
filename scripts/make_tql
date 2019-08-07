@@ -15,7 +15,7 @@ user = getpass.getuser()
 from astroplan import download_IERS_A
 
 try:
-    import tql
+    from tql import generate_QL, generate_all_lc, generate_FOV, generate_multi_aperture_lc, collate_tls_results, query_toi
 except:
     sys.path.append('../tql/')
     from tql import generate_QL, generate_all_lc, generate_FOV, generate_multi_aperture_lc, collate_tls_results, query_toi
