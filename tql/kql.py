@@ -6,7 +6,7 @@ import traceback
 import itertools
 import warnings
 from glob import glob
-#import matplotlib.colors as mcolors
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as pl
 import numpy as np
 import time
@@ -14,19 +14,18 @@ import logging
 from imp import reload
 import pandas as pd
 from tqdm import tqdm
-import eleanor as el
+#import eleanor as el
 import lightkurve as lk
 from astropy import units as u
-from scipy.ndimage import zoom #, rotate
-from astroquery.gaia import Gaia
-from scipy.stats.kde import gaussian_kde
-from astropy.coordinates import SkyCoord, Distance
+from scipy.ndimage import zoom, rotate
+# from astroquery.gaia import Gaia
+from astroplan import FixedTarget
+from astropy.coordinates import SkyCoord
 from astropy.wcs import WCS
 from astroquery.mast import Catalogs
-from astroplan import FixedTarget
 from astroplan.plots import plot_finder_image
 import deepdish as dd
-#from matplotlib.gridspec import GridSpec
+from matplotlib.gridspec import GridSpec
 from transitleastsquares import transitleastsquares, catalog
 #from transitleastsquares.tls_constants import DEFAULT_U
 import getpass
@@ -35,12 +34,12 @@ if getpass.getuser()=='muscat':
     pass
     #import matplotlib; matplotlib.use('agg')
 
-MISSION        = 'TESS'
-TESS_JD_offset = 2457000
+MISSION        = 'Kepler'
+KEPLER_JD_offset = 2454833
 #Savitzky-Golay filter window size (odd)
 SG_FILTER_WINDOW_SC = 401    #short-cadence: 361x2min = 722min= 12 hr
 SG_FILTER_WINDOW_LC = 11     #long-cadence:  25x30min = 750min = 12.5 hr
-TESS_pix_scale      = 21*u.arcsec #/pix
+KEPLER_pix_scale      = 4*u.arcsec #/pix
 FFI_CUTOUT_SIZE     = 8          #pix
 PHOTMETHOD     = 'aperture'  #or 'prf'
 # APPHOTMETHOD  =  'pipeline'  or 'all' or threshold --> uses tpf.extract_aperture_photometry
@@ -55,7 +54,7 @@ time_scale     = 'tdb'       #'tt', 'ut1', or 'utc'
 PGMETHOD       = 'lombscargle' # 'boxleastsquares'
 IMAGING_SURVEY = 'DSS2 Red'
 FONTSIZE       = 16
-LOG_FILENAME   = r'tql.log'
+LOG_FILENAME   = r'kql.log'
 MAX_SECTORS    = 5           # sectors to analyze if target is osberved in multiple sectors
 MULTISEC_BIN   = 10*u.min    # binning for very dense data (observed >MAX_SECTORS)
 YLIMIT       = (0.8,1.2)   # flux limits
@@ -67,25 +66,29 @@ reload(logging)
 logging.basicConfig(filename=LOG_FILENAME ,level=logging.DEBUG)
 
 
-def get_tpf(targ_coord, tic=None, apphot_method='sap',
-            apply_data_quality_mask=True,
-            sector=None, verbose=False, clobber=False, sap_mask='pipeline',
-            fitsoutdir='.', return_df=True):
+def get_tpf(targ_coord, koi=None, epic=None, mission=None, apphot_method='sap',
+            #apply_data_quality_mask=True,
+            quarter=None, campaign=None, verbose=False, clobber=False, 
+            sap_mask='pipeline', fitsoutdir='.', return_df=True):
     '''Download tpf from MAST given coordinates
-       though using TIC id yields unique match.
+       though using KOI/EPIC id yields unique match.
 
     Parameters
     ----------
     targ_coord : astropy.coordinates
         target coordinate
-    tic : int
-        TIC id
+    koi : float
+        KOI id
+    epic : float
+        EPIC id
+    quarter : int
+        Kepler sector
+    campaign : int
+        K2 campaign/field
+    mission : str
+        Kepler/K2 mission
     use_pld : bool
         use PLD for systematics correction
-    toi : float
-        TOI id
-    sector : int
-        TESS sector
     apphot_method : str
         aperture photometry method
     sap_mask : str
@@ -98,17 +101,22 @@ def get_tpf(targ_coord, tic=None, apphot_method='sap',
         re-download files
     '''
     # sector = None searches for all tpf; which sector to download is specified later
-    if tic:
-        ticstr = 'TIC {}'.format(tic)
+    if koi:
+        koistr = f'KOI {koi}'
         if verbose:
-            print('\nSearching mast for {}\n'.format(ticstr))
-        res = lk.search_targetpixelfile(ticstr, mission=MISSION, sector=None)
+            print(f'\nSearching mast for {koistr}\n')
+        res = lk.search_targetpixelfile(koistr, mission='Kepler', quarter-quarter)
+    if epic:
+        epicstr = f'EPIC {epic}'
+        if verbose:
+            print(f'\nSearching mast for {epicstr}\n')
+        res = lk.search_targetpixelfile(epicstr, mission='K2', campaign=campaign)
     else:
         if verbose:
             print('\nSearching mast for ra,dec=({})\n'.format(targ_coord.to_string()))
-        res = lk.search_targetpixelfile(targ_coord, mission=MISSION, sector=None)
+        res = lk.search_targetpixelfile(targ_coord, mission=mission, quarter=quarter, campaign=campaign)
     df = res.table.to_pandas()
-
+    #FIXME
     if len(df)>0:
         all_sectors = [int(i) for i in df['sequence_number'].values]
         if sector:
@@ -2389,9 +2397,9 @@ def make_square_mask(img, size, xy_center=None, angle=None):
            xy_center = [x,y]
     mask = np.zeros_like(img, dtype=bool)
     mask[y-h:y+h+1,x-w:x+w+1] = True
-    #if angle:
-    #    #rotate mask
-    #    mask = rotate(mask, angle, axes=(1, 0), reshape=True, output=bool, order=0)
+    if angle:
+        #rotate mask
+        mask = rotate(mask, angle, axes=(1, 0), reshape=True, output=bool, order=0)
     return mask
 
 
@@ -2762,8 +2770,8 @@ def catch_IERS_warning():
     # Set up the thing to catch the warning (and potentially others)
     with warnings.catch_warnings(record=True) as w:
         # import the modules
-        #from astroplan import Observer
-        #from astroplan import OldEarthOrientationDataWarning
+        from astroplan import Observer
+        from astroplan import OldEarthOrientationDataWarning
         #One want to know aout the first time a warning is thrown
         warnings.simplefilter("once")
 
@@ -2778,225 +2786,3 @@ def catch_IERS_warning():
             print('Updating IERS bulletin table...')
             from astroplan import download_IERS_A
             download_IERS_A()
-
-def get_open_clusters(loc='../data/TablesGaiaDR2HRDpaper/'):
-    '''summary table of 32 open clusters'''
-    fp = join(loc,'Table2_32 open clusters.csv')
-    df_open = pd.read_csv(fp, delimiter=',', comment='#')
-    df_open.Cluster = df_open.Cluster.apply(lambda x: x.replace('_',''))
-    return df_open
-
-def get_NGC_clusters(loc='../data/TablesGaiaDR2HRDpaper/'):
-    '''summary table of 14 globular clusters'''
-    fp = join(loc,'Table3_14 globular clusters.csv')
-    df_glob = pd.read_csv(fp, delimiter=' ', comment='#')
-    df_glob['Cluster'] = df_glob.NGC.apply(lambda x: 'NGC'+str(x).strip())
-    return df_glob
-
-def get_open_cluster_members_near(loc='../data/TablesGaiaDR2HRDpaper/'):
-    #<250pc
-    fp = join(loc,'TableA1a_9 open cluster members within 250 pc.csv')
-    df = pd.read_csv(fp, delimiter=',', comment='#')
-    df.columns = [c.strip() for c in df.columns]
-    df.Cluster = df.Cluster.apply(lambda x: x.strip())
-    return df
-
-def get_open_cluster_members_far(loc='../data/TablesGaiaDR2HRDpaper/'):
-    #>250pc
-    fp = join(loc,'TableA1b_37 open cluster members beyond 250 pc.csv')
-    df = pd.read_csv(fp, delimiter=',', comment='#')
-    df = df.replace(r'^\s*$', np.nan, regex=True)
-    df.columns = [c.strip() for c in df.columns]
-    df.Cluster = df.Cluster.apply(lambda x: x.strip())
-    return df
-
-def get_open_clusters_near(loc='../data/TablesGaiaDR2HRDpaper/'):
-    #<250pc
-    fp = join(loc,'Table3_Mean parameters for 9 open clusters within 250pc.tsv')
-    df = pd.read_csv(fp, delimiter='\t', comment='#')
-    df.columns = [c.strip() for c in df.columns]
-    df.Cluster = df.Cluster.apply(lambda x: x.strip())
-    return df
-
-def get_open_clusters_far(loc='../data/TablesGaiaDR2HRDpaper/'):
-    #>250pc
-    fp = join(loc,'TableA4_Mean parameters for 37 open clusters beyond 250pc.tsv')
-    df = pd.read_csv(fp, delimiter='\t', comment='#')
-    df = df.replace(r'^\s*$', np.nan, regex=True)
-    df.columns = [c.strip() for c in df.columns]
-    df.Cluster = df.Cluster.apply(lambda x: x.strip())
-    return df
-
-def combine_open_cluster_members_near_far(loc='../data/TablesGaiaDR2HRDpaper/'):
-    #make uniform column
-    df_open_near_mem = get_open_cluster_members_near(loc)
-    df_open_far_mem  = get_open_cluster_members_far(loc)
-    #concatenate
-    df_open_mem_concat = pd.concat([df_open_near_mem,df_open_far_mem], 
-                                   sort=True, join='outer')
-    return df_open_mem_concat
-
-def combine_open_clusters_near_far(loc='../data/TablesGaiaDR2HRDpaper/'):
-    #make uniform column
-    df_open_near = get_open_clusters_near(loc)
-    df_open_far  = get_open_clusters_far(loc)
-    df_open_far['RA_ICRS'] = df_open_far['RAJ2000']
-    df_open_far['DE_ICRS'] = df_open_far['DEJ2000']
-    df_open_far = df_open_far.drop(['RAJ2000','DEJ2000'], axis=1)
-
-    #concatenate
-    df_open_concat = pd.concat([df_open_near,df_open_far], 
-                               sort=True, join='outer')
-    return df_open_concat
-
-def compute_separation_from_clusters(target_coord, sep_3d=True):
-    '''compute 3d separation between target and all known clusters'''
-    if target_coord.distance.value==1.0:
-        target_coord = get_target_coord_3d(target_coord)
-
-    df = combine_open_clusters_near_far()
-    catalog = SkyCoord(ra=df['RA_ICRS'].values*u.deg, 
-                  dec=df['DE_ICRS'].values*u.deg, 
-                  distance=Distance(parallax=df['plx'].values*u.mas),
-                  radial_velocity=df['RV'].values*u.km/u.s,
-                  pm_ra_cosdec=df['pmRA'].values*u.mas/u.yr, 
-                  pm_dec=df['pmDE'].values*u.mas/u.yr, 
-                  frame='icrs'
-                  )
-    if sep_3d:
-        return catalog.separation_3d(target_coord)
-    else:
-        raise NotImplementedError
-
-def get_cluster_near_target(target_coord, distance, unit=u.pc, sep_3d=True):
-    '''get nearest cluster to target within specified distance'''
-    if target_coord.distance.value==1.0:
-        target_coord = get_target_coord_3d(target_coord)
-
-    df = combine_open_cluster_members_near_far()
-    catalog_sep = compute_separation_from_clusters(target_coord, sep_3d=sep_3d)
-    idx = catalog_sep < distance*unit
-    cluster= df['Cluster'].iloc[idx].values
-    sep = catalog_sep[idx]
-    return (cluster, sep)
-
-def get_target_coord_3d(target_coord):
-    '''append distance to target coordinate'''
-    g = Gaia.query_object(target_coord, radius=10*u.arcsec).to_pandas()
-    gcoords=SkyCoord(ra=g['ra'],dec=g['dec'],unit='deg')
-    #FIXME: get minimum or a few stars around the minimum?
-    idx=target_coord.separation(gcoords).argmin()
-    star=g.loc[idx]
-    #get distance from parallax
-    target_dist = Distance(parallax=star['parallax']*u.mas)
-    #redefine skycoord with coord and distance
-    target_coord = SkyCoord(ra=target_coord.ra, dec=target_coord.dec, distance=target_dist)
-    return target_coord
-
-def get_cluster_members_near_target(target_coord, distance=100, unit=u.pc):
-    '''get cluster members to target within specified distance
-    target_coord : target coordinates 
-    distance : target's 3d distance from nearest cluster
-    '''
-    if target_coord.distance.value==1.0:
-        target_coord = get_target_coord_3d(target_coord)
- 
-    #get clusters and separation
-    (cluster, sep) = get_cluster_near_target(target_coord, distance=distance, unit=unit)
-    if len(cluster)>0:
-        print('Nearest cluster match: {} (d={})\n'.format(cluster[0], sep[0]*unit))
-        mem = combine_open_cluster_members_near_far()
-        idx = mem.Cluster.isin(cluster)
-        #mcoord = SkyCoord(ra=m.loc[idx].ra.values*u.deg, 
-        #                  dec=m.loc[idx].dec.values*u.deg, 
-        #                  distance=Distance(parallax=m.loc[idx].par.values*u.mas))
-        return mem[idx]
-    else:
-        #raise ValueError('target not near any known clusters')
-        pass
-
-def get_cluster_diameter(coords):
-    '''get size of cluster in pc by getting mutual 3d-separation'''
-    #FIXME: this gets only ra,dec-extreme positions; search parallax too
-    idxs = [np.argmin(coords.ra), np.argmax(coords.ra),
-            np.argmin(coords.dec), np.argmax(coords.dec),
-            np.argmin(coords.distance), np.argmax(coords.distance)]
-
-    max_sep = np.max([coords[i].separation_3d(coords[idxs]) for i in idxs])
-    return max_sep*u.pc
-
-def get_cluster_names_with_members():
-    #FIXME: 
-    df = combine_open_cluster_members_near_far()
-    cnames = df.Cluster.tolist()
-    return cnames
-
-def plot_target_in_cluster(target_coord, cluster=None, #ax=None,
-                           min_cluster_diameter = 50,
-                           figoutdir='.',savefig=False):
-    '''basic cluster membership plots'''
-    if target_coord.distance.value==1.0:
-        target_coord = get_target_coord_3d(target_coord)
-
-    #min_cluster_diameter = get_cluster_diameter(coords).value
-    if cluster is None:
-        df = get_cluster_members_near_target(target_coord, 
-                                             distance=2*min_cluster_diameter, 
-                                             unit=u.pc)
-    else:
-        mem = combine_open_cluster_members_near_far()
-        idx = mem.Cluster.isin(cluster)
-        df = mem[idx]
-    #check if 3d-separation is smaller than cluster size
-    (cluster, sep) = get_cluster_near_target(target_coord, 
-                                             distance=2*min_cluster_diameter, 
-                                             unit=u.pc, sep_3d=True)
-
-    #get coordinates of cluster members
-    mcoords = SkyCoord(ra=df.ra.values*u.deg,
-         dec=df.dec.values*u.deg,
-         distance=Distance(parallax=df.par.values*u.mas))
-    #estimate cluster size
-    min_cluster_diameter = get_cluster_diameter(mcoords)
-
-    #import pdb; pdb.set_trace()
-    #FIXME: sep[0]?
-    if sep[0] > 10*min_cluster_diameter:
-        raise ValueError(f'{target_coord} > diameter of {cluster} (min_cluster_diameter)')
-
-    #if ax is None:
-    fig, ax = pl.subplots(1,2, figsize=(10,5))
-
-    n=0
-    df.plot.scatter(x='ra',y='dec',ax=ax[n])
-    text = 'n={}'.format(len(df))
-    ax[n].text(0.8,0.8,text,fontsize=14,transform=ax[n].transAxes)
-    #centroid
-    r=np.median(df['ra'].values)
-    d=np.median(df['dec'].values)
-    ax[n].plot(r,d,'ro')
-    ax[n].plot(target_coord.ra.deg,target_coord.dec.deg,
-           marker=r'$\star$',
-           c='b', ms='25', label='target')
-    ax[n].set_title(cluster)
-
-    #kernel density
-    h=np.histogram(df['par'],bins=100)
-    peak=h[1][np.argmax(h[0])]
-    distance=Distance(parallax=peak*u.mas)
-    text = 'd={:.1f}'.format(distance)
-    density = gaussian_kde(df['par'])
-    x = np.linspace(df['par'].min(), df['par'].max(),100)
-    ax[n+1].plot(x,density(x))
-    ax[n+1].text(0.05,0.8,text,fontsize=14,transform=ax[n+1].transAxes)
-    ax[n+1].axvline(peak, 0, 1, color='k', linestyle='-')
-    ax[n+1].axvline(target_coord.distance.value, 0, 1, color='k',linestyle='--')
-    ax[n+1].set_xlabel('Parallax [mas]')
-    if savefig:
-        figname = join(figoutdir,f'_{cluster}_membership.png')
-        fig.savefig(figname, bbox_inches='tight')
-        print(f'Saved:{figname}') 
-        pl.close()
-    else:
-        pl.show()
-    return None

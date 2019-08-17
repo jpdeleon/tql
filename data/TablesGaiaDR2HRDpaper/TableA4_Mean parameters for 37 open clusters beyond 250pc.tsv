@@ -1,0 +1,116 @@
+#
+#   VizieR Astronomical Server vizier.u-strasbg.fr
+#    Date: 2019-08-14T08:08:11 [V1.99+ (14-Oct-2013)]
+#   In case of problem, please report to:	cds-question@unistra.fr
+#
+#
+#Coosys	J2000:	eq_FK5 J2000
+#INFO	votable-version=1.99+ (14-Oct-2013)	
+#INFO	-ref=VIZ5d53bfa00dec	
+#INFO	-out.max=unlimited	
+#INFO	queryParameters=38	
+#-oc.form=dec
+#-out.max=unlimited
+#-out.all=2
+#-order=I
+#-nav=cat:J/A+A/616/A10&tab:{J/A+A/616/A10/tablea4}&key:source=J/A+A/616/A10/tablea1b&HTTPPRM:&&-ref=VIZ5d53bfa00dec&-out.max=unlimited&-out.form=HTML Table&-out.all=2&-oc.form=sexa&-c.eq=J2000&-c.r=  2&-c.u=arcmin&-c.geom=r&-order=I&-out=NMemb&-out=Cluster&-out=RA_ICRS&-out=DE_ICRS&-out=U&-out=e_U&-out=V&-out=e_V&-out=W&-out=e_W&-out=cUV&-out=cUW&-out=cVW&-out=RAconv&-out=DEconv&-out=plx&-out=e_plx&-out=pmRA&-out=e_pmRA&-out=pmDE&-out=e_pmDE&-out=uwsd&-out=RV&-out=e_RV&-out=SimbadName&-out=_RA.icrs&-out=_DE.icrs&-file=.&-meta.ucd=0&-meta=0&-meta.foot=1&-usenav=1&-bmark=POST&-out.src=J/A+A/616/A10/tablea3&
+#-c.eq=J2000
+#-c.r=  2
+#-c.u=arcmin
+#-c.geom=r
+#-source= J/A+A/616/A10/tablea4
+#-out=NMemb
+#-out=Cluster
+#-out=RA_ICRS
+#-out=DE_ICRS
+#-out=U
+#-out=e_U
+#-out=V
+#-out=e_V
+#-out=W
+#-out=e_W
+#-out=cUV
+#-out=cUW
+#-out=cVW
+#-out=RAconv
+#-out=DEconv
+#-out=plx
+#-out=e_plx
+#-out=pmRA
+#-out=e_pmRA
+#-out=pmDE
+#-out=e_pmDE
+#-out=uwsd
+#-out=RV
+#-out=e_RV
+#-out=SimbadName
+#-out=_RA.icrs
+#-out=_DE.icrs
+#-out.src=J/A+A/616/A10/tablea3
+#
+
+#RESOURCE=yCat_36160010
+#Name: J/A+A/616/A10
+#Title: 46 open clusters GaiaDR2 HR diagrams (Gaia Collaboration, 2018)
+#Table	J_A_A_616_A10_tablea4:
+#Name: J/A+A/616/A10/tablea4
+#Title: Mean parameters for clusters beyond 250pc
+#Column	NMemb	(I4)	Number of cluster members	[ucd=meta.number]
+#Column	Cluster	(A7)	Cluster name	[ucd=meta.id.parent]
+#Column	RAJ2000	(F8.4)	Right Ascension cluster centre (J2000)	[ucd=pos.eq.ra;meta.main]
+#Column	DEJ2000	(F8.4)	Declination cluster centre (J2000)	[ucd=pos.eq.dec;meta.main]
+#Column	plx	(F7.4)	Parallax of cluster centre	[ucd=pos.parallax.trig]
+#Column	e_plx	(F7.4)	Uncertainty of parallax cluster centre	[ucd=stat.error;pos.parallax]
+#Column	pmRA	(F8.4)	Proper motion along RA of cluster centre	[ucd=pos.pm;pos.eq.ra]
+#Column	e_pmRA	(F7.4)	Uncertainty of pmRA	[ucd=stat.error;pos.pm;pos.eq.ra]
+#Column	pmDE	(F8.4)	Proper motion along DE of cluster centre	[ucd=pos.pm;pos.eq.dec]
+#Column	e_pmDE	(F7.4)	Uncertainty of pmDE	[ucd=stat.error;pos.pm;pos.eq.dec]
+#Column	cc1	(F5.2)	Error correlation coefficient plx-pmRA	[ucd=stat.correlation]
+#Column	cc2	(F5.2)	Error correlation coefficient plx-pmDE	[ucd=stat.correlation]
+#Column	cc3	(F5.2)	Error correlation coefficient pmRA-pmDE	[ucd=stat.correlation]
+#Column	rMax	(F5.2)	Maximum radius of the cluster	[ucd=phys.angSize;stat.max]
+#Column	uwsd	(F5.2)	Unit-weight standard deviation of solution	[ucd=stat.stdev]
+#Column	RV	(F6.2)	? Mean radial velocity, Gaia data	[ucd=phys.veloc;pos.heliocentric]
+#Column	e_RV	(F5.2)	? Uncertainty on RV	[ucd=stat.error]
+#Column	o_RV	(I3)	? Number of radial velocity data points [NULL integer written as an empty string]	[ucd=meta.number]
+#Column	SimbadName	(a13)	Simbad column added by the CDS	[ucd=meta.id]
+NMemb	Cluster	RAJ2000	DEJ2000	plx	e_plx	pmRA	e_pmRA	pmDE	e_pmDE	cc1	cc2	cc3	rMax	uwsd	RV	e_RV	o_RV	SimbadName
+# 	 	deg	deg	mas	mas	mas/yr	mas/yr	mas/yr	mas/yr	 	 	 	deg	 	km/s	km/s	 	
+#----	-------	--------	--------	-------	-------	--------	-------	--------	-------	-----	-----	-----	-----	-----	------	-----	---	-------------
+1181	NGC 188	011.7494	+85.2395	 0.5053	 0.0011	 -2.3087	 0.0035	 -0.9565	 0.0030	-0.04	-0.02	 0.16	 0.58	 0.84	-41.86	 0.13	 20	NGC0188
+ 433	NGC 752	029.2054	+37.7454	 2.2304	 0.0027	  9.8092	 0.0191	-11.7637	 0.0180	 0.02	-0.04	 0.04	 2.58	 0.86	  5.90	 0.11	 76	NGC0752
+1742	Stock 2 	033.8282	+59.5813	 2.6367	 0.0009	 15.8241	 0.0103	-13.7669	 0.0104	 0.01	 0.01	 0.00	 2.36	 0.78	  8.58	 0.09	109	Stock2
+ 829	NGC 869	034.7391	+57.1339	 0.3942	 0.0014	 -0.6943	 0.0038	 -1.0831	 0.0041	 0.14	 0.10	 0.08	 0.19	 0.83	      	     	  0	NGC0869
+1077	NGC 884	035.5430	+57.1591	 0.3976	 0.0012	 -0.6021	 0.0035	 -1.0616	 0.0036	 0.16	 0.11	 0.10	 0.29	 0.86	-44.69	 0.73	  2	NGC0884
+ 589	Trump 2	039.1879	+55.8846	 1.4316	 0.0023	  1.5305	 0.0116	 -5.3361	 0.0117	 0.05	 0.04	 0.01	 1.21	 0.90	 -4.06	 0.09	  4	Trumpler 02
+ 764	NGC 1039	040.5843	+42.7027	 1.9536	 0.0027	  0.7256	 0.0109	 -5.7320	 0.0103	 0.02	-0.02	 0.04	 1.87	 0.79	 -7.27	 0.72	 18	NGC1039
+ 290	NGC 1901	079.6838	-68.1627	 2.3582	 0.0031	  1.5953	 0.0276	 12.6920	 0.0277	 0.03	 0.10	-0.03	 2.30	 1.04	  1.62	 0.56	 16	NGC1901
+3942	NGC 2158	091.8751	+24.1163	 0.1833	 0.0021	 -0.1665	 0.0035	 -1.9932	 0.0029	 0.18	-0.19	 0.21	 0.24	 0.92	 26.64	 0.60	 11	NGC2158
+1794	NGC 2168	092.2688	+24.3148	 1.1301	 0.0013	  2.2784	 0.0052	 -2.9336	 0.0050	 0.08	-0.08	 0.05	 1.20	 0.87	 -7.70	 0.26	  7	NGC2168
+ 318	NGC 2232	096.9973	-04.7929	 3.0710	 0.0033	 -4.7737	 0.0185	 -1.9014	 0.0181	 0.04	-0.04	 0.04	 2.76	 0.78	 24.22	 0.44	  9	NGC2232
+ 947	Trump 10	131.8982	-42.5192	 2.2637	 0.0014	-12.3536	 0.0102	  6.5309	 0.0104	 0.02	 0.00	-0.01	 1.69	 0.82	 21.97	 0.31	 28	Trumpler 10
+ 382	NGC 2323	105.7245	-08.3586	 1.0012	 0.0017	 -0.7977	 0.0063	 -0.6540	 0.0063	 0.06	-0.03	 0.00	 0.73	 0.87	 11.55	     	  1	NGC2323
+1037	NGC 2360	109.4452	-15.6317	 0.9018	 0.0012	  0.3853	 0.0048	  5.5893	 0.0048	 0.07	-0.02	-0.05	 0.74	 0.79	 28.02	 0.19	 15	NGC2360
+ 332	Coll 140	111.0308	-32.1113	 2.5685	 0.0025	 -8.1285	 0.0215	  4.7105	 0.0220	 0.02	 0.02	-0.01	 2.69	 0.81	 18.53	 1.85	  5	Collinder 140
+ 694	NGC 2423	114.2904	-13.8348	 1.0438	 0.0017	 -0.7343	 0.0070	 -3.6333	 0.0069	 0.09	 0.00	-0.04	 1.04	 0.81	 18.50	 0.17	 19	NGC2423
+ 907	NGC 2422	114.1463	-14.4844	 2.0690	 0.0014	 -7.0200	 0.0098	  0.9592	 0.0099	 0.05	 0.01	-0.02	 1.45	 0.74	 36.21	 0.57	 30	NGC2422
+3032	NGC 2437	115.4358	-14.8506	 0.6005	 0.0009	 -3.8232	 0.0031	  0.3729	 0.0031	 0.11	 0.01	-0.06	 0.74	 0.83	 37.34	     	  1	NGC2437
+ 926	NGC 2447	116.1262	-23.8567	 0.9603	 0.0013	 -3.5680	 0.0056	  5.0434	 0.0057	 0.03	 0.01	-0.01	 1.00	 0.80	 22.37	 0.26	 11	NGC2447
+2518	NGC 2516	119.5469	-60.7749	 2.4118	 0.0006	 -4.6579	 0.0075	 11.1517	 0.0075	 0.02	 0.00	-0.01	 2.54	 0.83	 23.78	 0.11	156	NGC2516
+ 644	NGC 2547	122.5654	-49.0498	 2.5438	 0.0015	 -8.5999	 0.0148	  4.2542	 0.0148	 0.02	 0.00	 0.00	 2.79	 0.78	 15.46	 0.83	 22	NGC2547
+ 509	NGC 2548	123.3834	-05.7363	 1.2897	 0.0024	 -1.3302	 0.0095	  1.0164	 0.0093	 0.13	 0.00	-0.03	 0.56	 0.80	  8.83	 0.27	  8	NGC2548
+1520	NGC 2682	132.8476	+11.8369	 1.1325	 0.0011	-10.9737	 0.0064	 -2.9396	 0.0063	 0.08	 0.00	-0.01	 1.06	 0.76	 34.05	 0.10	 66	NGC2682
+ 222	NGC 3228	155.3791	-51.7693	 2.0323	 0.0029	-14.8800	 0.0220	 -0.6498	 0.0220	 0.03	 0.03	-0.01	 2.27	 0.81	      	     	  0	NGC3228
+1879	NGC 3532	166.3975	-58.7335	 2.0659	 0.0007	-10.3790	 0.0079	  5.1958	 0.0079	 0.03	-0.02	 0.01	 2.31	 0.79	  4.85	 0.13	143	NGC3532
+ 452	NGC 6025	240.7714	-60.4562	 1.2646	 0.0015	 -2.8846	 0.0100	 -3.0222	 0.0099	-0.02	 0.01	 0.03	 0.94	 0.75	 -7.66	     	  1	NGC6025
+ 573	NGC 6281	256.1638	-37.9180	 1.8716	 0.0019	 -1.8764	 0.0144	 -3.9506	 0.0136	-0.03	 0.05	 0.05	 1.19	 0.80	 -5.02	 0.20	 21	NGC6281
+ 960	IC 4651 	261.2035	-49.9185	 1.0542	 0.0014	 -2.4051	 0.0061	 -5.0280	 0.0060	-0.07	 0.10	 0.06	 0.76	 0.80	-30.32	 0.19	 56	IC4651
+ 967	NGC 6405	265.1220	-32.4135	 2.1626	 0.0021	 -1.3662	 0.0140	 -5.8063	 0.0132	-0.04	 0.11	 0.04	 1.46	 0.82	 -9.20	 0.77	 17	NGC6405
+ 174	IC 4665 	266.4978	+05.5653	 2.8918	 0.0034	 -0.8993	 0.0347	 -8.5114	 0.0345	-0.02	 0.04	 0.02	 2.39	 0.75	-11.26	 2.12	  6	IC4665
+1140	NGC 6475	268.2736	-34.6639	 3.5704	 0.0016	  3.0722	 0.0185	 -5.3157	 0.0184	-0.02	 0.04	 0.02	 3.86	 0.82	-14.84	 0.17	113	NGC6475
+ 321	NGC 6633	276.8737	+06.6081	 2.5232	 0.0023	  1.1584	 0.0199	 -1.7371	 0.0200	-0.03	 0.09	 0.01	 1.99	 0.84	-28.59	 0.14	 28	NGC6633
+ 755	IC 4725 	277.9462	-19.1058	 1.5043	 0.0019	 -1.7201	 0.0091	 -6.1010	 0.0091	-0.07	 0.09	 0.04	 1.53	 0.89	      	     	  0	IC4725
+ 543	IC 4756 	279.6698	+05.3836	 2.0943	 0.0018	  1.2574	 0.0134	 -4.9145	 0.0134	-0.04	 0.06	 0.02	 2.05	 0.84	-24.72	 0.17	 38	IC4756
+ 234	NGC 6774	289.1055	-16.3901	 3.2516	 0.0038	 -0.9733	 0.0367	-26.6464	 0.0383	-0.03	 0.11	 0.00	 3.74	 1.00	 41.79	 0.15	 62	NGC6774
+ 465	NGC 6793	290.7795	+22.1400	 1.6672	 0.0021	  3.8120	 0.0131	  3.5622	 0.0136	-0.03	 0.06	-0.02	 1.47	 0.81	-10.85	     	  1	NGC6793
+ 433	NGC 7092	322.4220	+48.1315	 3.3373	 0.0024	 -7.3569	 0.0256	-19.5993	 0.0260	-0.02	 0.00	 0.00	 3.72	 0.86	 -5.07	 0.21	 21	NGC7092

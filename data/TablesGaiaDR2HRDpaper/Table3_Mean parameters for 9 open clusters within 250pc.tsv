@@ -1,0 +1,98 @@
+#
+#   VizieR Astronomical Server vizier.u-strasbg.fr
+#    Date: 2019-08-14T08:14:39 [V1.99+ (14-Oct-2013)]
+#   In case of problem, please report to:	cds-question@unistra.fr
+#
+#
+#Coosys	J2000:	eq_FK5 J2000
+#INFO	votable-version=1.99+ (14-Oct-2013)	
+#INFO	-ref=VIZ5d53bfa00dec	
+#INFO	-out.max=unlimited	
+#INFO	queryParameters=38	
+#-oc.form=dec
+#-out.max=unlimited
+#-out.all=2
+#-order=I
+#-nav=cat:J/A+A/616/A10&tab:{J/A+A/616/A10/tablea3}&key:source=J/A+A/616/A10/tablea1b&HTTPPRM:&&-ref=VIZ5d53bfa00dec&-out.max=unlimited&-out.form=HTML Table&-out.all=2&-oc.form=sexa&-c.eq=J2000&-c.r=  2&-c.u=arcmin&-c.geom=r&-order=I&-out=NMemb&-out=Cluster&-out=RA_ICRS&-out=DE_ICRS&-out=U&-out=e_U&-out=V&-out=e_V&-out=W&-out=e_W&-out=cUV&-out=cUW&-out=cVW&-out=RAconv&-out=DEconv&-out=plx&-out=e_plx&-out=pmRA&-out=e_pmRA&-out=pmDE&-out=e_pmDE&-out=uwsd&-out=RV&-out=e_RV&-out=SimbadName&-out=_RA.icrs&-out=_DE.icrs&-file=.&-meta.ucd=0&-meta=0&-meta.foot=1&-usenav=1&-bmark=POST&-out.src=J/A+A/616/A10/tablea3&
+#-c.eq=J2000
+#-c.r=  2
+#-c.u=arcmin
+#-c.geom=r
+#-source= J/A+A/616/A10/tablea3
+#-out=NMemb
+#-out=Cluster
+#-out=RA_ICRS
+#-out=DE_ICRS
+#-out=U
+#-out=e_U
+#-out=V
+#-out=e_V
+#-out=W
+#-out=e_W
+#-out=cUV
+#-out=cUW
+#-out=cVW
+#-out=RAconv
+#-out=DEconv
+#-out=plx
+#-out=e_plx
+#-out=pmRA
+#-out=e_pmRA
+#-out=pmDE
+#-out=e_pmDE
+#-out=uwsd
+#-out=RV
+#-out=e_RV
+#-out=SimbadName
+#-out=_RA.icrs
+#-out=_DE.icrs
+#-out.src=J/A+A/616/A10/tablea3
+#
+
+#RESOURCE=yCat_36160010
+#Name: J/A+A/616/A10
+#Title: 46 open clusters GaiaDR2 HR diagrams (Gaia Collaboration, 2018)
+#Coosys	H_2015.500:	ICRS
+#Table	J_A_A_616_A10_tablea3:
+#Name: J/A+A/616/A10/tablea3
+#Title: Mean parameters for clusters within 250pc
+#Column	NMemb	(I4)	number of cluster members identified	[ucd=meta.number]
+#Column	Cluster	(A8)	Cluster name	[ucd=meta.id.parent]
+#Column	RA_ICRS	(F6.2)	Right Ascension (ICRS), epoch 2015.5	[ucd=pos.eq.ra;meta.main]
+#Column	DE_ICRS	(F6.2)	Declination (ICRS), epoch 2015.5	[ucd=pos.eq.dec;meta.main]
+#Column	U	(F6.3)	U-component of cluster velocity	[ucd=phys.veloc]
+#Column	e_U	(F6.3)	Uncertainty on U	[ucd=stat.error;pos.cartesian.x]
+#Column	V	(F6.3)	V-component of cluster velocity	[ucd=phys.veloc;pos.cartesian.y]
+#Column	e_V	(F6.3)	Uncertainty on V	[ucd=stat.error;pos.cartesian.y]
+#Column	W	(F7.3)	W-component of cluster velocity	[ucd=phys.veloc]
+#Column	e_W	(F6.3)	Uncertainty on W	[ucd=stat.error;pos.cartesian.z]
+#Column	cUV	(F5.2)	Error-correlation coefficient U,V	[ucd=stat.correlation]
+#Column	cUW	(F5.2)	Error-correlation coefficient U,W	[ucd=stat.correlation]
+#Column	cVW	(F5.2)	Error-correlation coefficient V,W	[ucd=stat.correlation]
+#Column	RAconv	(F8.4)	Right ascension of convergent point	[ucd=pos.eq.ra]
+#Column	DEconv	(F8.4)	Declination of convergent point	[ucd=pos.eq.dec]
+#Column	plx	(F6.3)	Parallax of cluster centre	[ucd=pos.parallax.trig]
+#Column	e_plx	(F6.3)	Uncertainty on parallax cluster centre	[ucd=stat.error;pos.parallax]
+#Column	pmRA	(F7.3)	Proper motion along RA of cluster centre	[ucd=pos.pm;pos.eq.ra]
+#Column	e_pmRA	(F6.3)	Uncertainty on pmRA cluster centre	[ucd=stat.error;pos.pm;pos.eq.ra]
+#Column	pmDE	(F7.3)	Proper motion along DE of cluster centre	[ucd=pos.pm;pos.eq.dec]
+#Column	e_pmDE	(F6.3)	Uncertainty on pmDE cluster centre	[ucd=stat.error;pos.pm;pos.eq.dec]
+#Column	uwsd	(F5.2)	Unit-weight standard deviation of solution	[ucd=stat.stdev]
+#Column	RV	(F5.2)	Radial velocity at cluster centre	[ucd=phys.veloc;pos.heliocentric]
+#Column	e_RV	(F5.2)	Uncertainty of Vrad	[ucd=stat.error]
+#Column	SimbadName	(a17)	Simbad column added by the CDS	[ucd=meta.id]
+#Column	_RA.icrs	(F8.4)	Right ascension (ICRS) at Epoch=J2000, proper motions taken into account	[ucd=pos.eq.ra]
+#Column	_DE.icrs	(F8.4)	Declination (ICRS) at Epoch=J2000, proper motions taken into account	[ucd=pos.eq.dec]
+NMemb	Cluster	RA_ICRS	DE_ICRS	U	e_U	V	e_V	W	e_W	cUV	cUW	cVW	RAconv	DEconv	plx	e_plx	pmRA	e_pmRA	pmDE	e_pmDE	uwsd	RV	e_RV	SimbadName	_RA.icrs	_DE.icrs
+# 	 	deg	deg	km/s	km/s	km/s	km/s	km/s	km/s	 	 	 	deg	deg	mas	mas	mas/yr	mas/yr	mas/yr	mas/yr	 	km/s	km/s	 	deg	deg
+#----	--------	------	------	------	------	------	------	-------	------	-----	-----	-----	--------	--------	------	------	-------	------	-------	------	-----	-----	-----	-----------------	--------	--------
+ 740	alpha Per	052.06	+49.06	-5.110	 0.053	24.183	 0.067	-14.122	 0.097	 0.25	 0.40	 0.59	101.9183	-29.7555	 5.718	 0.005	 22.929	 0.071	-25.556	 0.095	 0.68	-0.29	 0.08	alpha Per cluster	052.0598	+49.0601
+ 489	Blanco 1 	000.72	-30.09	 6.176	 0.111	21.150	 0.020	 -0.296	 0.065	 0.01	-0.86	-0.02	 73.6042	 -0.8388	 4.216	 0.003	 18.724	 0.017	  2.650	 0.070	 0.65	 5.78	 0.10	Blanco1          	000.7199	-30.0900
+ 153	Coma Ber 	185.98	+26.09	-1.638	 0.078	 4.785	 0.018	 -3.528	 0.040	 0.35	-0.86	-0.39	110.1896	-34.3206	11.640	 0.034	-12.111	 0.048	 -8.996	 0.121	 0.48	-0.52	 0.07	Coma Ber         	185.9801	+26.0900
+ 515	Hyades  	067.98	+17.01	-6.059	 0.031	45.691	 0.069	  5.544	 0.025	 0.33	 0.35	 0.93	 97.5407	  6.8148	21.052	 0.065	101.005	 0.171	-28.490	 0.137	 0.67	39.96	 0.06	Hyades           	067.9795	+17.0101
+ 325	IC 2391  	130.29	-52.99	-0.751	 0.054	28.459	 0.062	 -1.590	 0.105	-0.20	 0.38	-0.52	 91.6471	 -3.4126	 6.597	 0.007	-24.927	 0.080	 23.256	 0.110	 0.68	14.59	 0.09	IC2391           	130.2902	-52.9901
+ 492	IC 2602  	161.22	-63.89	-9.467	 0.056	16.867	 0.024	-12.377	 0.120	-0.05	 0.40	-0.16	119.3285	-32.7371	 6.571	 0.007	-17.783	 0.040	 10.655	 0.098	 0.72	17.43	 0.11	IC2602           	161.2202	-63.8900
+ 400	NGC 2451 	116.01	-38.41	 5.806	 0.048	32.440	 0.095	 -3.100	 0.084	-0.24	 0.34	-0.76	 79.8905	 -5.4202	 5.163	 0.005	-21.063	 0.065	 15.378	 0.093	 0.68	22.85	 0.09	NGC2451          	116.0101	-38.4101
+1326	Pleiades	056.44	+23.86	-1.311	 0.070	21.390	 0.105	-24.457	 0.057	 0.48	 0.50	 0.90	 93.5183	-48.7831	 7.364	 0.005	 19.997	 0.127	-45.548	 0.101	 0.77	 5.65	 0.09	Pleiades         	056.4399	+23.8602
+ 938	Praesepe	130.08	+19.68	 0.339	 0.090	49.097	 0.106	  1.200	 0.050	-0.50	-0.60	 0.92	 89.5122	  1.3517	 5.371	 0.003	-36.047	 0.110	-12.917	 0.066	 0.76	35.64	 0.10	Praesepe         	130.0802	+19.6801
+
