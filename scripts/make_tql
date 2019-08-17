@@ -176,7 +176,7 @@ if __name__ == "__main__":
                 raise ValueError('Provide ra & dec or tic or toi or name')
 
         #check if target is a cluster member
-        plot_target_in_cluster(targ_coord, cluster=cluster, 
+        plot_target_in_cluster(targ_coord, cluster=cluster, verbose=verbose,
                                figoutdir=figoutdir, savefig=savefig)
 
         if cadence=='long':

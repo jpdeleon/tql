@@ -2042,7 +2042,6 @@ def get_gaia_params(targ_coord,gaia_sources,verbose=True):
     gcoords=SkyCoord(ra=gaia_sources['ra'],dec=gaia_sources['dec'],unit='deg')
     #FIXME: may not correspond to the host if binary or has confusing background star
     idx=targ_coord.separation(gcoords).argmin()
-    #import pdb; pdb.set_trace()
     star=gaia_sources.iloc[idx]
 
     if star['astrometric_excess_noise_sig']>2:
@@ -2849,10 +2848,10 @@ def combine_open_clusters_near_far(loc='../data/TablesGaiaDR2HRDpaper/'):
                                sort=True, join='outer')
     return df_open_concat
 
-def compute_separation_from_clusters(target_coord, sep_3d=True):
+def compute_separation_from_clusters(target_coord, sep_3d=True, verbose=False):
     '''compute 3d separation between target and all known clusters'''
     if target_coord.distance.value==1.0:
-        target_coord = get_target_coord_3d(target_coord)
+        target_coord = get_target_coord_3d(target_coord, verbose=verbose)
 
     df = combine_open_clusters_near_far()
     catalog = SkyCoord(ra=df['RA_ICRS'].values*u.deg, 
@@ -2868,20 +2867,24 @@ def compute_separation_from_clusters(target_coord, sep_3d=True):
     else:
         raise NotImplementedError
 
-def get_cluster_near_target(target_coord, distance, unit=u.pc, sep_3d=True):
+def get_cluster_near_target(target_coord, distance=10, unit=u.pc, sep_3d=True, verbose=False):
     '''get nearest cluster to target within specified distance'''
     if target_coord.distance.value==1.0:
-        target_coord = get_target_coord_3d(target_coord)
-
-    df = combine_open_cluster_members_near_far()
+        target_coord = get_target_coord_3d(target_coord, verbose=verbose)
+    #FIXME: include clusters not only open
+    df = combine_open_clusters_near_far()
     catalog_sep = compute_separation_from_clusters(target_coord, sep_3d=sep_3d)
     idx = catalog_sep < distance*unit
     cluster= df['Cluster'].iloc[idx].values
     sep = catalog_sep[idx]
+    if verbose:
+        print('Nearest cluster to target: {} (d={:.2f})'.format(cluster[0], sep[0]))
     return (cluster, sep)
 
-def get_target_coord_3d(target_coord):
+def get_target_coord_3d(target_coord, verbose=False):
     '''append distance to target coordinate'''
+    if verbose:
+        print('Querying parallax of target from Gaia\n')
     g = Gaia.query_object(target_coord, radius=10*u.arcsec).to_pandas()
     gcoords=SkyCoord(ra=g['ra'],dec=g['dec'],unit='deg')
     #FIXME: get minimum or a few stars around the minimum?
@@ -2893,29 +2896,30 @@ def get_target_coord_3d(target_coord):
     target_coord = SkyCoord(ra=target_coord.ra, dec=target_coord.dec, distance=target_dist)
     return target_coord
 
-def get_cluster_members_near_target(target_coord, distance=100, unit=u.pc):
+def get_cluster_members_near_target(target_coord, distance=50, unit=u.pc, verbose=False):
     '''get cluster members to target within specified distance
     target_coord : target coordinates 
     distance : target's 3d distance from nearest cluster
     '''
     if target_coord.distance.value==1.0:
-        target_coord = get_target_coord_3d(target_coord)
- 
+        target_coord = get_target_coord_3d(target_coord, verbose=verbose)
+
     #get clusters and separation
-    (cluster, sep) = get_cluster_near_target(target_coord, distance=distance, unit=unit)
+    (cluster, sep) = get_cluster_near_target(target_coord, distance=distance,
+                                             unit=unit, verbose=verbose)
+
     if len(cluster)>0:
-        print('Nearest cluster match: {} (d={})\n'.format(cluster[0], sep[0]*unit))
         mem = combine_open_cluster_members_near_far()
         idx = mem.Cluster.isin(cluster)
-        #mcoord = SkyCoord(ra=m.loc[idx].ra.values*u.deg, 
-        #                  dec=m.loc[idx].dec.values*u.deg, 
+        #mcoord = SkyCoord(ra=m.loc[idx].ra.values*u.deg,
+        #                  dec=m.loc[idx].dec.values*u.deg,
         #                  distance=Distance(parallax=m.loc[idx].par.values*u.mas))
         return mem[idx]
     else:
         #raise ValueError('target not near any known clusters')
         pass
 
-def get_cluster_diameter(coords):
+def get_cluster_diameter(coords, verbose=False):
     '''get size of cluster in pc by getting mutual 3d-separation'''
     #FIXME: this gets only ra,dec-extreme positions; search parallax too
     idxs = [np.argmin(coords.ra), np.argmax(coords.ra),
@@ -2923,20 +2927,36 @@ def get_cluster_diameter(coords):
             np.argmin(coords.distance), np.argmax(coords.distance)]
 
     max_sep = np.max([coords[i].separation_3d(coords[idxs]) for i in idxs])
+    if verbose:
+        print('cluster diameter estimate: {:.2f} pc\n'.format(max_sep))
     return max_sep*u.pc
 
-def get_cluster_names_with_members():
+def get_all_cluster_diameters(df=None):
+    if df is None:
+        df = combine_open_cluster_members_near_far()
+
+    for cluster,d in df.groupby(by='Cluster'):
+        mcoords = SkyCoord(ra=d.ra.values*u.deg,
+                           dec=d.dec.values*u.deg,
+                           distance=Distance(parallax=d.par.values*u.mas))
+        max_sep = get_cluster_diameter(mcoords)
+    cluster_diameters[cluster] = max_sep
+    return cluster_diameters
+
+def check_if_cluster_in_database(cluster, verbose=False):
     #FIXME: 
-    df = combine_open_cluster_members_near_far()
-    cnames = df.Cluster.tolist()
+    cnames = combine_open_clusters_near_far().Cluster
+    idx = cnames.isin(cluster)
+    if idx.sum()>0:
+        print('{} is not in {}'.format(cluster, cnames.tolist()))
     return cnames
 
 def plot_target_in_cluster(target_coord, cluster=None, #ax=None,
-                           min_cluster_diameter = 50,
+                           min_cluster_diameter=100, verbose=False,
                            figoutdir='.',savefig=False):
     '''basic cluster membership plots'''
     if target_coord.distance.value==1.0:
-        target_coord = get_target_coord_3d(target_coord)
+        target_coord = get_target_coord_3d(target_coord, verbose=verbose)
 
     #min_cluster_diameter = get_cluster_diameter(coords).value
     if cluster is None:
@@ -2950,7 +2970,8 @@ def plot_target_in_cluster(target_coord, cluster=None, #ax=None,
     #check if 3d-separation is smaller than cluster size
     (cluster, sep) = get_cluster_near_target(target_coord, 
                                              distance=2*min_cluster_diameter, 
-                                             unit=u.pc, sep_3d=True)
+                                             unit=u.pc, sep_3d=True,
+                                             verbose=verbose)
 
     #get coordinates of cluster members
     mcoords = SkyCoord(ra=df.ra.values*u.deg,
@@ -2961,8 +2982,8 @@ def plot_target_in_cluster(target_coord, cluster=None, #ax=None,
 
     #import pdb; pdb.set_trace()
     #FIXME: sep[0]?
-    if sep[0] > 10*min_cluster_diameter:
-        raise ValueError(f'{target_coord} > diameter of {cluster} (min_cluster_diameter)')
+    if sep[0] > min_cluster_diameter:
+        raise ValueError(f'{target_coord} > diameter of {cluster[0]} (min_cluster_diameter)')
 
     #if ax is None:
     fig, ax = pl.subplots(1,2, figsize=(10,5))
@@ -2978,22 +2999,23 @@ def plot_target_in_cluster(target_coord, cluster=None, #ax=None,
     ax[n].plot(target_coord.ra.deg,target_coord.dec.deg,
            marker=r'$\star$',
            c='b', ms='25', label='target')
-    ax[n].set_title(cluster)
+    ax[n].set_title(cluster[0])
 
     #kernel density
-    h=np.histogram(df['par'],bins=100)
-    peak=h[1][np.argmax(h[0])]
-    distance=Distance(parallax=peak*u.mas)
-    text = 'd={:.1f}'.format(distance)
-    density = gaussian_kde(df['par'])
-    x = np.linspace(df['par'].min(), df['par'].max(),100)
-    ax[n+1].plot(x,density(x))
-    ax[n+1].text(0.05,0.8,text,fontsize=14,transform=ax[n+1].transAxes)
+    dist = Distance(parallax=df['par'].values*u.mas).value
+    h = np.histogram(dist, bins=100)
+    peak = h[1][np.argmax(h[0])]
+    density = gaussian_kde(dist)
+    x = np.linspace(dist.min(), dist.max(),100)
+    ax[n+1].plot(x, density(x))
     ax[n+1].axvline(peak, 0, 1, color='k', linestyle='-')
-    ax[n+1].axvline(target_coord.distance.value, 0, 1, color='k',linestyle='--')
-    ax[n+1].set_xlabel('Parallax [mas]')
+    tdist = target_coord.distance.value
+    ax[n+1].axvline(tdist, 0, 1, color='k',linestyle='--')
+    text = 'd={:.1f}'.format(tdist)
+    ax[n+1].text(0.5,0.8,text,fontsize=14,transform=ax[n+1].transAxes)
+    ax[n+1].set_xlabel('Distance [pc]')
     if savefig:
-        figname = join(figoutdir,f'_{cluster}_membership.png')
+        figname = join(figoutdir,f'_{cluster[0]}_membership.png')
         fig.savefig(figname, bbox_inches='tight')
         print(f'Saved:{figname}') 
         pl.close()
