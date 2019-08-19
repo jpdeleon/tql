@@ -14,7 +14,6 @@ import logging
 from imp import reload
 import pandas as pd
 from tqdm import tqdm
-import eleanor as el
 import lightkurve as lk
 from astropy import units as u
 from scipy.ndimage import zoom #, rotate
@@ -178,6 +177,11 @@ def get_ffi_cutout(targ_coord=None, tic=None, sector=None, #cutout_size=10,
     clobber : bool
         re-download files
     '''
+    try:
+        import eleanor as el
+    except:
+        raise ImportError('pip install eleanor')
+
     if tic:
         ticstr = 'TIC {}'.format(tic)
         if verbose:
@@ -313,7 +317,7 @@ def ffi_cutout_to_lc(tpf, sap_mask='threshold', aper_radius=None, percentile=Non
                 #GP will create MemoryError so limit mask
                 msg = 'More than {} pixels (npix={}) are used in PLD\n'.format(npix_lim,npix)
                 sap_mask, aper_radius = 'square', 1
-                mask = parse_aperture_mask(tpf, sap_mask=sap_mask, aper_radius=aper_radius, 
+                mask = parse_aperture_mask(tpf, sap_mask=sap_mask, aper_radius=aper_radius,
                                            percentile=percentile, verbose=verbose)
                 msg += 'Try changing to --aper_mask={} (s={}; npix={}) to avoid memory error.\n'.format(aper_mask, aper_radius, mask.sum())
                 if verbose:
@@ -769,7 +773,7 @@ def generate_QL(targ_coord,toi=None,tic=None,sector=None,#cutout_size=10,
                     #GP will create MemoryError so limit mask
                     msg = 'More than {} pixels (npix={}) are used in PLD\n'.format(npix_lim,npix)
                     sap_mask, aper_radius = 'square', 1.0
-                    mask = parse_aperture_mask(tpf, sap_mask=sap_mask, aper_radius=aper_radius, 
+                    mask = parse_aperture_mask(tpf, sap_mask=sap_mask, aper_radius=aper_radius,
                                                percentile=percentile, verbose=verbose)
                     msg += 'Try changing to {} mask (s={}; npix={}) to avoid memory error.\n'.format(aper_mask, aper_radius, mask.sum())
                 if verbose:
@@ -1246,7 +1250,7 @@ def generate_all_lc(targ_coord,toi=None,tic=None,
                     tpf = remove_bad_data(tpf,sector,verbose=verbose)
 
                 #make aperture mask
-                mask = parse_aperture_mask(tpf, sap_mask=sap_mask, 
+                mask = parse_aperture_mask(tpf, sap_mask=sap_mask,
                        aper_radius=aper_radius, percentile=percentile, verbose=verbose)
 
                 tpfs.append(tpf)
@@ -2831,7 +2835,7 @@ def combine_open_cluster_members_near_far(loc='../data/TablesGaiaDR2HRDpaper/'):
     df_open_near_mem = get_open_cluster_members_near(loc)
     df_open_far_mem  = get_open_cluster_members_far(loc)
     #concatenate
-    df_open_mem_concat = pd.concat([df_open_near_mem,df_open_far_mem], 
+    df_open_mem_concat = pd.concat([df_open_near_mem,df_open_far_mem],
                                    sort=True, join='outer')
     return df_open_mem_concat
 
@@ -2844,7 +2848,7 @@ def combine_open_clusters_near_far(loc='../data/TablesGaiaDR2HRDpaper/'):
     df_open_far = df_open_far.drop(['RAJ2000','DEJ2000'], axis=1)
 
     #concatenate
-    df_open_concat = pd.concat([df_open_near,df_open_far], 
+    df_open_concat = pd.concat([df_open_near,df_open_far],
                                sort=True, join='outer')
     return df_open_concat
 
@@ -2854,12 +2858,12 @@ def compute_separation_from_clusters(target_coord, sep_3d=True, verbose=False):
         target_coord = get_target_coord_3d(target_coord, verbose=verbose)
 
     df = combine_open_clusters_near_far()
-    catalog = SkyCoord(ra=df['RA_ICRS'].values*u.deg, 
-                  dec=df['DE_ICRS'].values*u.deg, 
+    catalog = SkyCoord(ra=df['RA_ICRS'].values*u.deg,
+                  dec=df['DE_ICRS'].values*u.deg,
                   distance=Distance(parallax=df['plx'].values*u.mas),
                   radial_velocity=df['RV'].values*u.km/u.s,
-                  pm_ra_cosdec=df['pmRA'].values*u.mas/u.yr, 
-                  pm_dec=df['pmDE'].values*u.mas/u.yr, 
+                  pm_ra_cosdec=df['pmRA'].values*u.mas/u.yr,
+                  pm_dec=df['pmDE'].values*u.mas/u.yr,
                   frame='icrs'
                   )
     if sep_3d:
@@ -2898,7 +2902,7 @@ def get_target_coord_3d(target_coord, verbose=False):
 
 def get_cluster_members_near_target(target_coord, distance=50, unit=u.pc, verbose=False):
     '''get cluster members to target within specified distance
-    target_coord : target coordinates 
+    target_coord : target coordinates
     distance : target's 3d distance from nearest cluster
     '''
     if target_coord.distance.value==1.0:
@@ -2926,7 +2930,7 @@ def get_cluster_diameter(coords, verbose=False):
             np.argmin(coords.dec), np.argmax(coords.dec),
             np.argmin(coords.distance), np.argmax(coords.distance)]
 
-    max_sep = np.max([coords[i].separation_3d(coords[idxs]) for i in idxs])
+    max_sep = np.nanmax([coords[i].separation_3d(coords[idxs]) for i in idxs])
     if verbose:
         print('cluster diameter estimate: {:.2f} pc\n'.format(max_sep))
     return max_sep*u.pc
@@ -2935,16 +2939,17 @@ def get_all_cluster_diameters(df=None):
     if df is None:
         df = combine_open_cluster_members_near_far()
 
+    cluster_diameters = {}
     for cluster,d in df.groupby(by='Cluster'):
         mcoords = SkyCoord(ra=d.ra.values*u.deg,
                            dec=d.dec.values*u.deg,
                            distance=Distance(parallax=d.par.values*u.mas))
         max_sep = get_cluster_diameter(mcoords)
-    cluster_diameters[cluster] = max_sep
+        cluster_diameters[cluster] = max_sep
     return cluster_diameters
 
 def check_if_cluster_in_database(cluster, verbose=False):
-    #FIXME: 
+    #FIXME:
     cnames = combine_open_clusters_near_far().Cluster
     idx = cnames.isin(cluster)
     if idx.sum()>0:
@@ -2960,16 +2965,16 @@ def plot_target_in_cluster(target_coord, cluster=None, #ax=None,
 
     #min_cluster_diameter = get_cluster_diameter(coords).value
     if cluster is None:
-        df = get_cluster_members_near_target(target_coord, 
-                                             distance=2*min_cluster_diameter, 
+        df = get_cluster_members_near_target(target_coord,
+                                             distance=2*min_cluster_diameter,
                                              unit=u.pc)
     else:
         mem = combine_open_cluster_members_near_far()
         idx = mem.Cluster.isin(cluster)
         df = mem[idx]
     #check if 3d-separation is smaller than cluster size
-    (cluster, sep) = get_cluster_near_target(target_coord, 
-                                             distance=2*min_cluster_diameter, 
+    (cluster, sep) = get_cluster_near_target(target_coord,
+                                             distance=2*min_cluster_diameter,
                                              unit=u.pc, sep_3d=True,
                                              verbose=verbose)
 
@@ -3017,7 +3022,7 @@ def plot_target_in_cluster(target_coord, cluster=None, #ax=None,
     if savefig:
         figname = join(figoutdir,f'_{cluster[0]}_membership.png')
         fig.savefig(figname, bbox_inches='tight')
-        print(f'Saved:{figname}') 
+        print(f'Saved:{figname}')
         pl.close()
     else:
         pl.show()
