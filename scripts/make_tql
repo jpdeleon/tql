@@ -173,11 +173,7 @@ if __name__ == "__main__":
                     #FIXME: how to get generic tic
                     raise ValueError('TIC/TOI not found!')
             else:
-                raise ValueError('Provide ra & dec or tic or toi or name')
-
-        #check if target is a cluster member
-        plot_target_in_cluster(targ_coord, cluster=cluster, verbose=verbose,
-                               figoutdir=figoutdir, savefig=savefig)
+                raise ValueError('Provide ra & dec or tic or toi or name')        
 
         if cadence=='long':
             assert sap_mask!='pipeline', '--aper_mask=pipeline (default) is not available for FFI data. Try {round, square, threshold, percentile}.'
