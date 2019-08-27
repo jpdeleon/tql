@@ -43,6 +43,7 @@ SG_FILTER_WINDOW_LC = 11     #long-cadence:  25x30min = 750min = 12.5 hr
 TESS_pix_scale      = 21*u.arcsec #/pix
 FFI_CUTOUT_SIZE     = 8          #pix
 PHOTMETHOD     = 'aperture'  #or 'prf'
+BINSIZE_SC     = 5           #bin == 10 minutes
 # APPHOTMETHOD  =  'pipeline'  or 'all' or threshold --> uses tpf.extract_aperture_photometry
 SFF_CHUNKSIZE  = 27          #27 chunks for a 27-day baseline
                              #there is a 3-day gap in all TESS dataset due to data downlink
@@ -56,7 +57,7 @@ PGMETHOD       = 'lombscargle' # 'boxleastsquares'
 IMAGING_SURVEY = 'DSS2 Red'
 FONTSIZE       = 16
 LOG_FILENAME   = r'tql.log'
-MAX_SECTORS    = 5           # sectors to analyze if target is osberved in multiple sectors
+MAX_SECTORS    = 5           # number of sectors to analyze if target is osberved in multiple sectors
 MULTISEC_BIN   = 10*u.min    # binning for very dense data (observed >MAX_SECTORS)
 YLIMIT       = (0.8,1.2)   # flux limits
 DEFAULT_U      = [0.4804, 0.1867] #quadratic limb darkening for a G2V star in the Kepler bandpass
@@ -328,7 +329,7 @@ def ffi_cutout_to_lc(tpf, sap_mask='threshold', aper_radius=None, percentile=Non
             pld = lk.PLDCorrector(tpf)
             corr_lc = pld.correct(cadence_mask=cadence_mask_tpf,
                     aperture_mask=mask, use_gp=use_gp,
-                    pld_aperture_mask=mask,
+                    # pld_aperture_mask=~mask,
                     #gp_timescale=30, n_pca_terms=10, pld_order=2,
                     ).remove_nans().remove_outliers().normalize()
         else:
@@ -397,7 +398,7 @@ def plot_ffi_apers(tpf, percentiles=np.arange(40,100,10), figsize=(14,6)):
 
     for n,perc in enumerate(percentiles):
         mask = parse_aperture_mask(tpf, sap_mask='percentile', percentile=perc)
-        a = tpf.plot(ax=ax[n], aperture_mask=mask, show_colorbar=False)
+        a = tpf.plot(ax=ax[n], aperture_mask=mask, origin='lower', show_colorbar=False)
         a.axis('off')
         a.set_title(perc)
 
@@ -760,14 +761,15 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
             print('ndata={}\n'.format(len(raw_lc.time)))
         #correct systematics/ filter long-term variability
         #see https://github.com/KeplerGO/lightkurve/blob/master/lightkurve/correctors.py
+        cadence_mask_tpf = make_cadence_mask(tpf.time, period, t0,
+                                             t14, verbose=verbose)
         if use_pld or use_sff:
             msg = 'Applying systematics correction:\n'.format(use_gp)
             if use_pld:
-                msg += 'using PLD (gp={})'.format(use_gp)
+                msg += 'using PLD (gp={})\n'.format(use_gp)
                 if verbose:
                     logging.info(msg); print(msg)
-                cadence_mask_tpf = make_cadence_mask(tpf.time, period, t0,
-                                                     t14, verbose=verbose)
+
                 npix = tpf.pipeline_mask.sum()
                 npix_lim = 24
                 if sap_mask=='pipeline' and npix>npix_lim:
@@ -777,13 +779,13 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
                     mask = parse_aperture_mask(tpf, sap_mask=sap_mask, aper_radius=aper_radius,
                                                percentile=percentile, verbose=verbose)
                     msg += 'Try changing to {} mask (s={}; npix={}) to avoid memory error.\n'.format(aper_mask, aper_radius, mask.sum())
-                if verbose:
-                    logging.info(msg); print(msg)
-                # pld = tpf.to_corrector(method='pld')
+                    if verbose:
+                        logging.info(msg); print(msg)
+
                 pld = lk.PLDCorrector(tpf)
                 corr_lc = pld.correct(cadence_mask=cadence_mask_tpf,
                         aperture_mask=mask, use_gp=use_gp,
-                        pld_aperture_mask=mask,
+                        # pld_aperture_mask=~mask,
                         #gp_timescale=30, n_pca_terms=10, pld_order=2,
                         ).remove_nans().remove_outliers().normalize()
 
@@ -805,7 +807,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
             if verbose:
                 logging.info(msg); print(msg)
             cadence_mask_corr = make_cadence_mask(corr_lc.time, period, t0,
-                                                 t14, verbose=verbose)
+                                                 t14, verbose=False)
             #finally flatten
             flat_lc, trend = corr_lc.flatten(window_length=sg_filter_window,
                                              mask=cadence_mask_corr,
@@ -885,6 +887,8 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
             print('Best period from periodogram: {:.4f} {}\n'.format(results.period,u.day))
         #phase fold
         fold_lc = flat_lc.fold(period=results.period, t0=results.T0)
+        fold_lc_2P = flat_lc.fold(period=results.period*2, t0=results.T0)
+        fold_lc_halfP = flat_lc.fold(period=results.period*0.5, t0=results.T0)
 
         maskhdr = tpf.hdu[2].header
         tpfwcs = WCS(maskhdr)
@@ -913,12 +917,33 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
             verticalalignment='top', horizontalalignment='right',
             transform=axs[i].transAxes, color='w', fontsize=12)
         ax1.set_title('sector={}'.format(sector), fontsize=FONTSIZE)
-        axs[i].invert_yaxis()
+
+        #centroid shift analysis
+        if (cadence_mask_tpf is None) | (np.sum(cadence_mask_tpf)==0): #non-TOIs
+            #make cadence_mask based on TLS results
+            cadence_mask_tpf = make_cadence_mask(tpf.time, results.period, results.T0)
+        flux_intransit = np.nanmedian(tpf.flux[cadence_mask_tpf], axis=0)
+        flux_outtransit = np.nanmedian(tpf.flux[~cadence_mask_tpf], axis=0)
+
+        gaia_sources = Catalogs.query_region(target_coord, radius=fov_rad,
+                                    catalog="Gaia", version=2).to_pandas()
+        # xc,yc = gaia_sources[['ra','dec']].values[0]
+        # #centroid based on Gaia coordinates; should be identical to TIC
+        # ax1.plot(xc, yc, 'rx', ms=18, label='Gaia')
+        #centroid based on TIC coordinates
+        y,x=tpf.wcs.all_world2pix(np.c_[tpf.ra,tpf.dec],1)[0]
+        y+=tpf.row; x+=tpf.column
+        #centroid based on difference image centroid
+        y2,x2 = get_2d_centroid(flux_outtransit-flux_intransit)
+        y2+=tpf.row; x2+=tpf.column
+        # ax.matshow(flux_outtransit-flux_intransit, origin='lower')
+        ax1.plot(x,y,'rx',ms=16, label='TIC')
+        ax1.plot(x2,y2,'bx',ms=16, label='out-in')
+        ax1.legend(title='centroid')
+        #axs[i].invert_yaxis()
 
         #----------ax1: archival image with superposed aper mask ----------
         i=1
-        # if verbose:
-        #     print('Querying {0} ({1} x {1}) archival image'.format(IMAGING_SURVEY,fov_rad))
         nax, hdu = plot_finder_image(target_coord, fov_radius=fov_rad,
                                      survey=IMAGING_SURVEY, reticle=True, ax=axs[i])
         nwcs = WCS(hdu.header)
@@ -936,8 +961,6 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
                              transform=nax.get_transform(tpfwcs))
 
         #plot gaia sources
-        gaia_sources = Catalogs.query_region(target_coord, radius=fov_rad,
-                                    catalog="Gaia", version=2).to_pandas()
         for r,d in gaia_sources[['ra','dec']].values:
             pix = nwcs.all_world2pix(np.c_[r,d],1)[0]
             nax.scatter(pix[0], pix[1], marker='s', s=100, edgecolor='r',
@@ -1023,17 +1046,24 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         fold_lc.scatter(ax=axs[i], color='k', alpha=0.1, label='unbinned')
         #ax[i].scatter(results.folded_phase-phase_offset,results.folded_y,
         #              color='k', marker='.', label='unbinned', alpha=0.1, zorder=2)
-        fold_lc.bin(5).scatter(ax=axs[i], color='C1', label='binned (10-min)')
+        fold_lc.bin(BINSIZE_SC).scatter(ax=axs[i], color='C1', label='binned (10-min)')
+        #lc folded at period multiples to check for EB
+        flux_offset = (1-results.depth)*3
+        axs[i].plot(fold_lc_2P.bin(BINSIZE_SC).time, fold_lc_2P.bin(BINSIZE_SC).flux-flux_offset,
+                    'ks', label='2xPeriod', alpha=0.1)
+        axs[i].plot(fold_lc_halfP.bin(BINSIZE_SC).time, fold_lc_2P.bin(BINSIZE_SC).flux-flux_offset*2,
+                    'k^', label='0.5xPeriod', alpha=0.1)
+        #TLS model
         axs[i].plot(results.model_folded_phase-0.5, results.model_folded_model, color='red', label='TLS model')
         rprs= results['rp_rs']
         t14 = results.duration*u.day.to(u.hour)
         t0  = results['T0']
 
-        star_source = 'tic'
+        star_source = 'TIC'
         rstar, teff = Rs_tic, Teff_tic
         Rp = rprs*rstar*u.Rsun.to(u.Rearth)
         if str(rstar)=='nan':
-            star_source = 'gaia'
+            star_source = 'Gaia DR2'
             rstar, teff = Rs_gaia, Teff_gaia
             Rp = rprs*rstar*u.Rsun.to(u.Rearth)
 
@@ -1053,7 +1083,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
 
         # manually set ylimit for shallow transits
         if rprs<=0.1:
-            ylo,yhi = 1-10*rprs**2,1+5*rprs**2
+            ylo,yhi = 1-15*rprs**2,1+5*rprs**2
             axs[i].set_ylim(ylo, yhi if yhi<1.02 else 1.02)
 
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -1293,8 +1323,9 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                 verticalalignment='top', horizontalalignment='right',
                 transform=ax[i].transAxes, color='w', fontsize=12)
             ax1.set_title('sector={}'.format(all_sectors[i]), fontsize=FONTSIZE)
+            #
             #FIXME: when should axis be inverted?
-            ax[i].invert_yaxis()
+            #ax[i].invert_yaxis()
 
             #----------ax1: archival image with superposed aper mask ----------
             i=1
@@ -1356,6 +1387,9 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                 lcs.append(raw_lc)
                 cdpps_raw.append(raw_lc.flatten().estimate_cdpp())
 
+                cadence_mask_tpf = make_cadence_mask(tpf.time, period, t0,
+                                                     t14, verbose=verbose)
+
                 #correct systematics/ filter long-term variability
                 if use_pld or use_sff:
                     msg = 'Applying systematics correction:\n'.format(use_gp)
@@ -1363,13 +1397,11 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                         msg += 'using PLD (gp={})'.format(use_gp)
                         if verbose:
                             logging.info(msg); print(msg)
-                        cadence_mask_tpf = make_cadence_mask(tpf.time, period, t0,
-                                                             t14, verbose=verbose)
                         # pld = tpf.to_corrector(method='pld')
                         pld = lk.PLDCorrector(tpf)
                         corr_lc = pld.correct(cadence_mask=cadence_mask_tpf,
                                 aperture_mask=mask, use_gp=use_gp,
-                                pld_aperture_mask=mask,
+                                # pld_aperture_mask=~mask,
                                 #gp_timescale=30, n_pca_terms=10, pld_order=2,
                                 ).remove_nans().remove_outliers().normalize()
                     else:
@@ -1392,7 +1424,7 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                     if verbose:
                         logging.info(msg); print(msg)
                     cadence_mask_corr = make_cadence_mask(corr_lc.time, period, t0,
-                                                         t14, verbose=verbose)
+                                                         t14, verbose=False)
                     #finally flatten
                     flat_lc, trend = corr_lc.flatten(window_length=SG_FILTER_WINDOW_SC,
                                                      mask=cadence_mask_corr,
@@ -1577,7 +1609,7 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             ax[i].plot(results.model_folded_phase-phase_offset,
                        results.model_folded_model,
                        color='red', label='TLS model')
-            fold_lc.bin(5).scatter(ax=ax[i], color='C1', label='binned (10-min)')
+            fold_lc.bin(BINSIZE_SC).scatter(ax=ax[i], color='C1', label='binned (10-min)')
             fold_lc.scatter(ax=ax[i], color='k', alpha=0.1, label='unbinned')
             #ax[i].scatter(results.folded_phase-phase_offset,results.folded_y,
             #              color='k', marker='.', label='unbinned', alpha=0.1, zorder=2)
@@ -1887,7 +1919,7 @@ def query_toi(toi=None, tic=None, clobber=True, outdir='../data', verbose=True):
         comments=q[['TOI','Comments']].values
         print('Data from TOI Releases:\nTIC ID\t{}\nP(d)\t{}\nT0(BJD)\t{} \
                \nT14(hr)\t{}\ndepth(ppm)\t{}\n'.format(tic,per,t0,t14,dep))
-        print('Comment:\n{}\n'.format(comments))
+        print('TOI Release Comment:\n{}\n'.format(comments))
 
     if q['TFOPWG Disposition'].isin(['FP']).any():
         print('\nTFOPWG disposition is a False Positive!\n')
@@ -1942,6 +1974,7 @@ def get_tois(clobber=True, outdir='../data', verbose=False,
     return d.sort_values('TOI')
 
 def get_transit_params(q, toi=None, tic=None, verbose=False):
+    ''' '''
     if len(q)>0:
         if toi:
             toiid = str(toi).split('.')[0]
@@ -1972,6 +2005,7 @@ def get_transit_params(q, toi=None, tic=None, verbose=False):
                 print(msg)
                 logging.error(msg)
 
+            ticid = q['TIC ID'].values[idx]
             tois = list(set(q['TOI'].values))
             if verbose and len(tois)>1:
                 assert ticid in q['TIC ID'].values
@@ -1985,28 +2019,42 @@ def get_transit_params(q, toi=None, tic=None, verbose=False):
     return period, t0, t14, depth, toiid
 
 
-def make_cadence_mask(time, period, t0, t14, verbose=False):
+def make_cadence_mask(time, period, t0, t14=0.5, padding=0.5, verbose=False):
     '''Make cadence mask for PLD if ephemeris is known
+
+    Parameters
+    ----------
+    time : array
+        time [JD]
+    period : float
+        orbital period [day]
+    t14 : float
+        transit duration [day] (default 12 hr)
+    padding : float
+        factor padding to t12 and t34 in units of t14 to include in mask
+
+    Returns
+    -------
+    cadence_mask : bool array
+        masked candences
     '''
     if np.all([period, t0]):
-        #if toi with known ephemeris, mask transit so PLD cannot overfit
-        #FIXME: PLD should be re-run with ephemeris from TLS
         if (time_format=='btjd') and (t0 > 2450000):
             t0 = t0 - TESS_JD_offset
-        w = t14 if t14 is not None else 0.5 # 12 hour width
         tns = get_tns(time, period, t0, allow_half_period=True)
+        ntransit = len(tns)
         cadence_mask = np.zeros_like(time).astype(bool)
         for tn in tns:
-            #instead of factor of 1/2, 2/3 is used to add padding
-            ix = (time > tn-2.*w/3.) & (time < tn+2.*w/3.)
+            ix = (time > tn-t14*padding) & (time < tn+t14*padding)
             cadence_mask[ix] = True
-        msg = 'with n={} masked transits\n'.format(len(tns))
+        ncadence_mask = cadence_mask.sum()
+        mask_duration = 2*padding*t14*u.day.to(u.hour)
+        msg = f'n={ntransit} transits with {mask_duration} hr mask duration\nyields n={ncadence_mask} masked cadences\n'
         assert len(time)==len(cadence_mask)
-
     else:
         #FIXME: no transit mask usually overfits!
-        cadence_mask = None #np.zeros_like(time).astype(bool)
-        msg = 'without masked transits\n'
+        cadence_mask = None
+        msg = 'Provide period & t0.\n'
     if verbose:
         logging.info(msg); print(msg)
     return cadence_mask
@@ -2408,6 +2456,38 @@ def make_square_mask(img, size, xy_center=None, angle=None):
     #    mask = rotate(mask, angle, axes=(1, 0), reshape=True, output=bool, order=0)
     return mask
 
+def get_2d_centroid(image):
+    ''' '''
+    img = np.copy(image)
+    w,h = img.shape
+    y,x = np.unravel_index(np.argmax(img), img.shape)
+    #check if centroid is near image boundary
+    while np.any([x>=h-1,x>=w-1,y>=h-1,y>=w-1]):
+        img[y,x] = 0
+        y,x = np.unravel_index(np.argmax(img), img.shape)
+    return y,x
+
+def plot_centroid_shift(tpf, cadence_mask_tpf, ax=None):
+    '''the residual from the difference between the mean out-of-transit
+    flux value and the mean in-transit shows the location of the signal.
+    '''
+    flux_intransit = np.nanmean(tpf.flux[cadence_mask_tpf], axis=0)
+    flux_outtransit = np.nanmean(tpf.flux[~cadence_mask_tpf], axis=0)
+
+    #centroid based on TIC coordinates
+    y,x=tpf.wcs.all_world2pix(np.c_[tpf.ra,tpf.dec],1)[0]
+    #centroid based on out-of-transit centroid
+    y2,x2 = get_2d_centroid(flux_outtransit)
+
+    if ax is None:
+        fig, ax = pl.subplots()
+
+    ax.matshow(flux_outtransit-flux_intransit, origin='lower')
+    ax.plot(x,y,'rx',ms=18, label='TIC')
+    ax.plot(x2,y2,'bx',ms=18, label='OOT')
+    pl.colorbar()
+    pl.legend()
+    return ax
 
 def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,sector=None,
                  use_pld=False,use_gp=False,use_sff=False,percentiles=None,
@@ -2522,7 +2602,7 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
                    percentile=aper_arg, verbose=verbose)
             #-----ax0-----#
             if n==0:
-                nax1 = tpf.plot(aperture_mask=mask, ax=ax1)
+                nax1 = tpf.plot(aperture_mask=mask, origin='lower', ax=ax1)
                 ax1.text(0.95, 0.10, 'mask={}'.format(sap_mask),
                     verticalalignment='top', horizontalalignment='right',
                     transform=nax1.transAxes, color='w', fontsize=12)
@@ -2546,19 +2626,19 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
             raw_lc = raw_lc.remove_nans().remove_outliers().normalize()
             lcs.append(raw_lc)
 
+            cadence_mask_tpf = make_cadence_mask(tpf.time, period, t0,
+                                                 t14, verbose=verbose)
             if use_pld or use_sff:
                 msg = 'Applying systematics correction:\n'.format(use_gp)
                 if use_pld:
                     msg += 'using PLD (gp={})'.format(use_gp)
                     if verbose:
                         logging.info(msg); print(msg)
-                    cadence_mask_tpf = make_cadence_mask(tpf.time, period, t0,
-                                                         t14, verbose=verbose)
                     # pld = tpf.to_corrector(method='pld')
                     pld = lk.PLDCorrector(tpf)
                     corr_lc = pld.correct(cadence_mask=cadence_mask_tpf,
                             aperture_mask=mask, use_gp=use_gp,
-                            pld_aperture_mask=mask,
+                            # pld_aperture_mask=~mask,
                             #gp_timescale=30, n_pca_terms=10, pld_order=2,
                             ).remove_nans().remove_outliers().normalize()
                 else:
@@ -2580,7 +2660,7 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
                 if verbose:
                     logging.info(msg); print(msg)
                 cadence_mask_corr = make_cadence_mask(corr_lc.time, period, t0,
-                                                     t14, verbose=verbose)
+                                                     t14, verbose=False)
                 #finally flatten
                 flat_lc, trend = corr_lc.flatten(window_length=SG_FILTER_WINDOW_SC,
                                                  mask=cadence_mask_corr,
@@ -2659,7 +2739,7 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
             #-----folded lc-----#
             ax = fig.add_subplot(axn)
             fold_lc.scatter(ax=ax, color='k', alpha=0.1, label='unbinned')
-            fold_lc.bin(5).scatter(ax=ax, color=color, label='binned (10-min)')
+            fold_lc.bin(BINSIZE_SC).scatter(ax=ax, color=color, label='binned (10-min)')
             ax.plot(results.model_folded_phase-0.5,
                     results.model_folded_model,
                     color='red', label='TLS model')
@@ -3237,7 +3317,6 @@ def plot_cluster_membership(target_coord, cluster=None, target_gaia_id=None,
     #estimate cluster size
     min_cluster_diameter = get_cluster_diameter(mcoords)
 
-    #import pdb; pdb.set_trace()
     #FIXME: sep[0]?
     if sep[0] > min_cluster_diameter:
         raise ValueError(f'{target_coord} > diameter of {cluster[0]} (min_cluster_diameter)')
