@@ -55,7 +55,7 @@ optional arguments:
   -col, --collate_only  collate all TLS results into table (add -s to save as .csv)
 ```
 
-![img](./plots/TIC183985250_TOI193.01_s2.png)
+![img](./plots/TIC183985250_TOI193.01_s2_sc.png)
 
 
 ## Examples
@@ -145,7 +145,7 @@ $ make_tql -col -s -o=../new_tics
 * TOI are queried from [TESS Alerts](https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv) though some RA and DEC (e.g. TOI-144) are not precise enough to match a TPF using `lightkurve.search_targetpixelfile.`
 * breakpoints based on [data release notes](http://archive.stsci.edu/tess/tess_drn.html) are manually encoded
 * About `lightkurve`:
-  - tpf was downloaded with `quality_bitmask='hardest'` so all flagged data is removed, although some obvious bad data can still show up ([here](https://github.com/jpdeleon/kurasta/blob/master/tics_in_star_clusters/Hyades/TIC399697011.png) for example); try also `hard/default` to be less conservative; [see meaning of flags here](https://github.com/KeplerGO/lightkurve/blob/master/lightkurve/utils.py#L174)
+  - tpf was downloaded with `quality_bitmask='hardest'` so all flagged data is removed, although some obvious bad data can still show up ([here](https://github.com/jpdeleon/seidan/blob/master/tics_in_star_clusters/Hyades/TIC399697011.png) for example); try also `hard/default` to be less conservative; [see meaning of flags here](https://github.com/KeplerGO/lightkurve/blob/master/lightkurve/utils.py#L174)
   - `tpf.to_lightcurve().remove_nans().remove_outliers().normalize()` is likely very conservative but there can be remaining obvious outliers after checking preliminary results
   - pipeline was run in all known TOIs (see TOI folder) to test its effectiveness; only deep transits were recovered  
   - `tpf.to_corrector().correct()` is almost always necessary to detect signals in known TOIs

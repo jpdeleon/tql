@@ -327,10 +327,12 @@ def ffi_cutout_to_lc(tpf, sap_mask='threshold', aper_radius=None, percentile=Non
                 raise ValueError(msg)
             # pld = tpf.to_corrector(method='pld')
             pld = lk.PLDCorrector(tpf)
-            corr_lc = pld.correct(cadence_mask=cadence_mask_tpf,
-                    aperture_mask=mask, use_gp=use_gp,
-                    # pld_aperture_mask=~mask,
-                    #gp_timescale=30, n_pca_terms=10, pld_order=2,
+            corr_lc = pld.correct(aperture_mask=mask, use_gp=use_gp,
+                    #True means cadence is considered in the noise model
+                    cadence_mask=~cadence_mask_tpf,
+                    #True means the pixel is chosen when selecting the PLD basis vectors
+                    pld_aperture_mask=mask,
+                    # gp_timescale=30, n_pca_terms=10, pld_order=2,
                     ).remove_nans().remove_outliers().normalize()
         else:
             #use_sff without restoring trend
@@ -745,6 +747,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         # check if target is TOI from tess alerts
         q = query_toi(tic=ticid, toi=toi, clobber=clobber,
                       outdir='../data', verbose=verbose)
+
         period, t0, t14, depth, toiid = get_transit_params(q, toi=toi,
                                                     tic=ticid, verbose=verbose)
         if verbose:
@@ -783,10 +786,12 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
                         logging.info(msg); print(msg)
 
                 pld = lk.PLDCorrector(tpf)
-                corr_lc = pld.correct(cadence_mask=cadence_mask_tpf,
-                        aperture_mask=mask, use_gp=use_gp,
-                        # pld_aperture_mask=~mask,
-                        #gp_timescale=30, n_pca_terms=10, pld_order=2,
+                corr_lc = pld.correct(aperture_mask=mask, use_gp=use_gp,
+                        #True means cadence is considered in the noise model
+                        cadence_mask=~cadence_mask_tpf,
+                        #True means the pixel is chosen when selecting the PLD basis vectors
+                        pld_aperture_mask=mask,
+                        # gp_timescale=30, n_pca_terms=10, pld_order=2,
                         ).remove_nans().remove_outliers().normalize()
 
             else:
@@ -863,6 +868,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
             Ms_tic = 1.0 if Ms_tic is None else Ms_tic
         except:
             (u1, u2), Ms_tic, Rs_tic =  DEFAULT_U, 1.0, 1.0 #assume G2 star
+            Teff_tic, logg_tic = None, None
         if verbose:
             if u1==DEFAULT_U[0] and u2==DEFAULT_U[1]:
                 print('Using default limb-darkening coefficients\n')
@@ -925,12 +931,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         flux_intransit = np.nanmedian(tpf.flux[cadence_mask_tpf], axis=0)
         flux_outtransit = np.nanmedian(tpf.flux[~cadence_mask_tpf], axis=0)
 
-        gaia_sources = Catalogs.query_region(target_coord, radius=fov_rad,
-                                    catalog="Gaia", version=2).to_pandas()
-        # xc,yc = gaia_sources[['ra','dec']].values[0]
-        # #centroid based on Gaia coordinates; should be identical to TIC
-        # ax1.plot(xc, yc, 'rx', ms=18, label='Gaia')
-        #centroid based on TIC coordinates
+        #centroid based on TIC coordinates (identical to Gaia coordinates)
         y,x=tpf.wcs.all_world2pix(np.c_[tpf.ra,tpf.dec],1)[0]
         y+=tpf.row; x+=tpf.column
         #centroid based on difference image centroid
@@ -940,7 +941,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         ax1.plot(x,y,'rx',ms=16, label='TIC')
         ax1.plot(x2,y2,'bx',ms=16, label='out-in')
         ax1.legend(title='centroid')
-        #axs[i].invert_yaxis()
+        axs[i].invert_xaxis()
 
         #----------ax1: archival image with superposed aper mask ----------
         i=1
@@ -961,6 +962,18 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
                              transform=nax.get_transform(tpfwcs))
 
         #plot gaia sources
+        gaia_sources = Catalogs.query_region(target_coord, radius=fov_rad,
+                                    catalog="Gaia", version=2).to_pandas()
+        tic_sources = Catalogs.query_region(target_coord, radius=fov_rad,
+                                    catalog="TIC", #version=8
+                                    ).to_pandas()
+        idx = tic_sources['ID'].astype(int).isin([ticid])
+        if np.any(idx):
+            gaia_id = tic_sources.loc[idx,'GAIA'].values[0]
+            gaia_id = int(gaia_id) if str(gaia_id)!='nan' else None
+        else:
+            gaia_id = None
+
         for r,d in gaia_sources[['ra','dec']].values:
             pix = nwcs.all_world2pix(np.c_[r,d],1)[0]
             nax.scatter(pix[0], pix[1], marker='s', s=100, edgecolor='r',
@@ -969,7 +982,8 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         nax.set_title("{0} ({1:.2f}\' x {1:.2f}\')".format(IMAGING_SURVEY,fov_rad.value),
                                                         fontsize=FONTSIZE)
         #get gaia stellar params
-        Rs_gaia, Teff_gaia = get_gaia_params(target_coord,gaia_sources,verbose=False)
+        Rs_gaia, Teff_gaia = get_gaia_params(target_coord, gaia_sources,
+                                             gaia_id, verbose=False)
 
         #----------ax2: lc plot----------
         i=2
@@ -1031,7 +1045,8 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
             axs[i].axvline(results.period / n, alpha=0.4, lw=1, linestyle="dashed")
         axs[i].set_ylabel(r'SDE')
         axs[i].set_xlabel('Period [days]')
-        axs[i].plot(results.periods, results.power, color='black', lw=0.5, label='TLS periodogram')
+        axs[i].plot(results.periods, results.power, color='black',
+                    lw=0.5, label='TLS periodogram')
         axs[i].set_xlim(0, max(results.periods));
         text = 'Best period={:.2f} {}'.format(results.period, u.day)
         # text = 'Best period={:.2f} {}'.format(period.value, period.unit)
@@ -1049,12 +1064,15 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         fold_lc.bin(BINSIZE_SC).scatter(ax=axs[i], color='C1', label='binned (10-min)')
         #lc folded at period multiples to check for EB
         flux_offset = (1-results.depth)*3
-        axs[i].plot(fold_lc_2P.bin(BINSIZE_SC).time, fold_lc_2P.bin(BINSIZE_SC).flux-flux_offset,
+        axs[i].plot(fold_lc_2P.bin(BINSIZE_SC).time,
+                    fold_lc_2P.bin(BINSIZE_SC).flux-flux_offset,
                     'ks', label='2xPeriod', alpha=0.1)
-        axs[i].plot(fold_lc_halfP.bin(BINSIZE_SC).time, fold_lc_2P.bin(BINSIZE_SC).flux-flux_offset*2,
+        axs[i].plot(fold_lc_halfP.bin(BINSIZE_SC).time,
+                    fold_lc_2P.bin(BINSIZE_SC).flux-flux_offset*2,
                     'k^', label='0.5xPeriod', alpha=0.1)
         #TLS model
-        axs[i].plot(results.model_folded_phase-0.5, results.model_folded_model, color='red', label='TLS model')
+        axs[i].plot(results.model_folded_phase-0.5, results.model_folded_model,
+                    color='red', label='TLS model')
         rprs= results['rp_rs']
         t14 = results.duration*u.day.to(u.hour)
         t0  = results['T0']
@@ -1317,15 +1335,32 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             # plot only the first tpf
             i=0
             tpf = tpfs[i]
+            mask = masks[i]
             ax1=tpf.plot(aperture_mask=mask, #frame=10,
                          origin='lower', ax=ax[i]);
             ax1.text(0.95, 0.10, 'mask={}'.format(sap_mask),
                 verticalalignment='top', horizontalalignment='right',
                 transform=ax[i].transAxes, color='w', fontsize=12)
             ax1.set_title('sector={}'.format(all_sectors[i]), fontsize=FONTSIZE)
-            #
-            #FIXME: when should axis be inverted?
-            #ax[i].invert_yaxis()
+
+            cadence_mask_tpf = make_cadence_mask(tpf.time, period, t0, t14)
+            #centroid shift analysis
+            if (cadence_mask_tpf is not None) | (np.sum(cadence_mask_tpf)!=0):
+                #Does not work for non-TOIs because period is not given a priori
+                flux_intransit = np.nanmedian(tpf.flux[cadence_mask_tpf], axis=0)
+                flux_outtransit = np.nanmedian(tpf.flux[~cadence_mask_tpf], axis=0)
+
+                #centroid based on TIC coordinates (identical to Gaia coordinates)
+                y,x=tpf.wcs.all_world2pix(np.c_[tpf.ra,tpf.dec],1)[0]
+                y+=tpf.row; x+=tpf.column
+                #centroid based on difference image centroid
+                y2,x2 = get_2d_centroid(flux_outtransit-flux_intransit)
+                y2+=tpf.row; x2+=tpf.column
+                # ax.matshow(flux_outtransit-flux_intransit, origin='lower')
+                ax1.plot(x,y,'rx',ms=16, label='TIC')
+                ax1.plot(x2,y2,'bx',ms=16, label='out-in')
+                ax1.legend(title='centroid')
+            ax[i].invert_xaxis()
 
             #----------ax1: archival image with superposed aper mask ----------
             i=1
@@ -1348,7 +1383,17 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                                                             fontsize=FONTSIZE)
 
             #get gaia stellar params
-            Rs_gaia, Teff_gaia = get_gaia_params(target_coord,gaia_sources,verbose=False)
+            tic_sources = Catalogs.query_region(target_coord, radius=fov_rad,
+                                        catalog="TIC", #version=8
+                                        ).to_pandas()
+            idx = tic_sources['ID'].astype(int).isin([ticid])
+            if np.any(idx):
+                gaia_id = tic_sources.loc[idx,'GAIA'].values[0]
+                gaia_id = int(gaia_id) if str(gaia_id)!='nan' else None
+            else:
+                gaia_id = None
+
+            Rs_gaia, Teff_gaia = get_gaia_params(target_coord,gaia_sources,gaia_id,verbose=False)
 
             lcs = []
             corr_lcs = []
@@ -1362,6 +1407,7 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             for j,n in tqdm(enumerate(sector_idx)):
                 print('\n----------sector {}----------\n'.format(all_sectors[j]))
                 tpf = tpfs[j]
+                mask = masks[j]
                 maskhdr = tpf.hdu[2].header
                 tpfwcs = WCS(maskhdr)
 
@@ -1399,10 +1445,12 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                             logging.info(msg); print(msg)
                         # pld = tpf.to_corrector(method='pld')
                         pld = lk.PLDCorrector(tpf)
-                        corr_lc = pld.correct(cadence_mask=cadence_mask_tpf,
-                                aperture_mask=mask, use_gp=use_gp,
-                                # pld_aperture_mask=~mask,
-                                #gp_timescale=30, n_pca_terms=10, pld_order=2,
+                        corr_lc = pld.correct(aperture_mask=mask, use_gp=use_gp,
+                                #True means cadence is considered in the noise model
+                                cadence_mask=~cadence_mask_tpf,
+                                #True means the pixel is chosen when selecting the PLD basis vectors
+                                pld_aperture_mask=mask,
+                                # gp_timescale=30, n_pca_terms=10, pld_order=2,
                                 ).remove_nans().remove_outliers().normalize()
                     else:
                         #use_sff without restoring trend
@@ -1530,6 +1578,8 @@ def generate_all_lc(target_coord,toi=None,tic=None,
 
             #phase fold
             fold_lc = flat_lc.fold(period=results.period, t0=results.T0)
+            fold_lc_2P = flat_lc.fold(period=results.period*2, t0=results.T0)
+            fold_lc_halfP = flat_lc.fold(period=results.period*0.5, t0=results.T0)
 
             #----------ax2: raw lc plot----------
             i=2
@@ -1611,23 +1661,34 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                        color='red', label='TLS model')
             fold_lc.bin(BINSIZE_SC).scatter(ax=ax[i], color='C1', label='binned (10-min)')
             fold_lc.scatter(ax=ax[i], color='k', alpha=0.1, label='unbinned')
-            #ax[i].scatter(results.folded_phase-phase_offset,results.folded_y,
-            #              color='k', marker='.', label='unbinned', alpha=0.1, zorder=2)
+
+            flux_offset = (1-results.depth)*3
+            ax[i].plot(fold_lc_2P.bin(BINSIZE_SC).time,
+                        fold_lc_2P.bin(BINSIZE_SC).flux-flux_offset,
+                        'ks', label='2xPeriod', alpha=0.1)
+            ax[i].plot(fold_lc_halfP.bin(BINSIZE_SC).time,
+                        fold_lc_2P.bin(BINSIZE_SC).flux-flux_offset*2,
+                        'k^', label='0.5xPeriod', alpha=0.1)
             ax[i].legend(loc=3)
 
             rprs= results['rp_rs']
             t14 = results.duration*u.day.to(u.hour)
             t0  = results['T0']
 
-            # manually set lower ylimit for shallow transits
-            if rprs<=0.1:
-                ylo,yhi = 1-10*rprs**2,1+5*rprs**2
-                ax[i].set_ylim(ylo, yhi if yhi<1.02 else 1.02)
-
             #get gaia stellar params
-            gaia_sources = Catalogs.query_region(target_coord, radius=5*u.arcsec,
+            gaia_sources = Catalogs.query_region(target_coord, radius=fov_rad,
                                         catalog="Gaia", version=2).to_pandas()
-            Rs_gaia, Teff_gaia = get_gaia_params(target_coord,gaia_sources,verbose=False)
+            tic_sources = Catalogs.query_region(target_coord, radius=fov_rad,
+                                        catalog="TIC", #version=8
+                                        ).to_pandas()
+            idx = tic_sources['ID'].astype(int).isin([ticid])
+            if np.any(idx):
+                gaia_id = tic_sources.loc[idx,'GAIA'].values[0]
+                gaia_id = int(gaia_id) if str(gaia_id)!='nan' else None
+            else:
+                gaia_id = None
+
+            Rs_gaia, Teff_gaia = get_gaia_params(target_coord,gaia_sources,gaia_id,verbose=False)
 
             star_source = 'tic'
             rstar, teff = Rs_tic, Teff_tic
@@ -1651,10 +1712,10 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             ax[i].legend(loc=3, title='phase-folded lc')
             pl.setp(ax[i], xlim=(-0.2, 0.2), xlabel='Phase', ylabel='Normalized flux');
 
-            #manually set ylim
+            # manually set ylimit for shallow transits
             if rprs<=0.1:
-                ylo,yhi = 1-10*rprs**2,1+5*rprs**2
-                ax[i].set_ylim(ylo, yhi if yhi<1.015 else 1.015)
+                ylo,yhi = 1-15*rprs**2,1+5*rprs**2
+                ax[i].set_ylim(ylo, yhi if yhi<1.02 else 1.02)
 
             all_sectors = [str(s) for s in all_sectors]
             if results:
@@ -1833,7 +1894,7 @@ def generate_FOV(target_coord,tic=None,toi=None,sector=None,
                 title="DSS2 Red ({0:.2f}\' x {0:.2f}\')".format(fov_rad.value))
 
         if toi or toiid:
-            id = str(toi).split('.')[0] if toi is not None else toiid
+            id = toi if toi is not None else toiid
             figname='TIC{}_TOI{}_FOV_s{}.png'.format(tic,id,sector)
             pl.suptitle('TIC {} (TOI {})'.format(ticid,id), fontsize=FONTSIZE)
         else:
@@ -2100,12 +2161,17 @@ def plot_gaia_sources(target_coord, gaia_sources, survey='DSS2 Blue', verbose=Tr
     return nax, img
 
 
-def get_gaia_params(target_coord,gaia_sources,verbose=True):
+def get_gaia_params(target_coord, gaia_sources, gaia_id=None, verbose=True):
     '''Get rstar and teff'''
     gcoords=SkyCoord(ra=gaia_sources['ra'],dec=gaia_sources['dec'],unit='deg')
     #FIXME: may not correspond to the host if binary or has confusing background star
-    idx=target_coord.separation(gcoords).argmin()
-    star=gaia_sources.iloc[idx]
+    if gaia_id is not None:
+        #search gaia id
+        idx = np.where(gaia_sources['source_id'].astype(int).isin([gaia_id]))[0][0]
+    else:
+        #assume closest coordinate match
+        idx = target_coord.separation(gcoords).argmin()
+    star = gaia_sources.iloc[idx]
 
     if star['astrometric_excess_noise_sig']>2:
         print('The target has significant astrometric excess noise: {:.2f}\n'.format(star['astrometric_excess_noise_sig']))
@@ -2575,8 +2641,18 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
         #query gaia
         gaia_sources = Catalogs.query_region(target_coord, radius=fov_rad,
                                     catalog="Gaia", version=2).to_pandas()
+        tic_sources = Catalogs.query_region(target_coord, radius=fov_rad,
+                                    catalog="TIC", #version=8
+                                    ).to_pandas()
+        idx = tic_sources['ID'].astype(int).isin([ticid])
+        if np.any(idx):
+            gaia_id = tic_sources.loc[idx,'GAIA'].values[0]
+            gaia_id = int(gaia_id) if str(gaia_id)!='nan' else None
+        else:
+            gaia_id = None
+
         #get gaia stellar params
-        Rs_gaia, Teff_gaia = get_gaia_params(target_coord,gaia_sources,verbose=False)
+        Rs_gaia, Teff_gaia = get_gaia_params(target_coord,gaia_sources,gaia_id,verbose=False)
         #plot gaia sources on archival image
         nax, archival_img = plot_gaia_sources(target_coord, gaia_sources, verbose=verbose,
                              survey='DSS2 Blue', fov_rad=fov_rad, reticle=True, ax=ax2)
@@ -2636,10 +2712,12 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
                         logging.info(msg); print(msg)
                     # pld = tpf.to_corrector(method='pld')
                     pld = lk.PLDCorrector(tpf)
-                    corr_lc = pld.correct(cadence_mask=cadence_mask_tpf,
-                            aperture_mask=mask, use_gp=use_gp,
-                            # pld_aperture_mask=~mask,
-                            #gp_timescale=30, n_pca_terms=10, pld_order=2,
+                    corr_lc = pld.correct(aperture_mask=mask, use_gp=use_gp,
+                            #True means cadence is considered in the noise model
+                            cadence_mask=~cadence_mask_tpf,
+                            #True means the pixel is chosen when selecting the PLD basis vectors
+                            pld_aperture_mask=mask,
+                            # gp_timescale=30, n_pca_terms=10, pld_order=2,
                             ).remove_nans().remove_outliers().normalize()
                 else:
                     #use_sff without restoring trend
@@ -2850,8 +2928,10 @@ def isInside(border, target):
 def print_recommendations():
     print('\n-----------Some recommendations-----------\n')
     print('Try -c if [buffer is too small for requested array] or to update TOI list')
-    print('Try using -no_gp if [MemoryError: std::bad_alloc]')
-    print('Try --aper={pipeline,threshold,percentile,all} if [assert k <= min(m, n)] or tpf seems corrupted\n')
+    print('Try -no_gp if [MemoryError: std::bad_alloc]')
+    print('Try --aper={pipeline,threshold,percentile,all} if [assert k <= min(m, n)] or tpf seems corrupted')
+    print('Re-run tql if [json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)]')
+    print('Re-run tql if [TypeError: unsupported format string passed to NoneType.__format__]\n')
 
 
 def catch_IERS_warning():
@@ -3101,7 +3181,7 @@ def check_if_cluster_in_database(cluster, verbose=False):
     return cnames
 
 def get_cluster_members_gaia_params(cluster_name, df, clobber=False, verbose=True,
-                                 dataloc='../data/TablesGaiaDR2HRDpaper/'):
+                                    dataloc='../data/TablesGaiaDR2HRDpaper/'):
     '''query gaia params for each cluster member'''
     fp=join(dataloc,f'{cluster_name}_members.hdf5')
     if not exists(fp) or clobber:
