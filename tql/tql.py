@@ -37,7 +37,6 @@ if getpass.getuser()=='muscat':
 
 MISSION        = 'TESS'
 TESS_JD_offset = 2457000
-#Savitzky-Golay filter window size (odd)
 SG_FILTER_WINDOW_SC = 401    #short-cadence: 361x2min = 722min= 12 hr
 SG_FILTER_WINDOW_LC = 11     #long-cadence:  25x30min = 750min = 12.5 hr
 TESS_pix_scale      = 21*u.arcsec #/pix
@@ -45,22 +44,26 @@ FFI_CUTOUT_SIZE     = 8          #pix
 PHOTMETHOD     = 'aperture'  #or 'prf'
 BINSIZE_SC     = 5           #bin == 10 minutes
 # APPHOTMETHOD  =  'pipeline'  or 'all' or threshold --> uses tpf.extract_aperture_photometry
+#QUALITY_FLAGS  = lk.utils.TessQualityFlags()
+# PGMETHOD       = 'lombscargle' # or 'boxleastsquares'; deprecated in favor of TLS
 SFF_CHUNKSIZE  = 27          #27 chunks for a 27-day baseline
                              #there is a 3-day gap in all TESS dataset due to data downlink
                              #use chunksize larger than the gap i.e. chunksize>27/3
 SFF_BINSIZE    = 360         #0.5 day for 2-minute cadence
-#QUALITY_FLAGS  = lk.utils.TessQualityFlags()
 quality_bitmask= 'hard'      #or default?
 time_format    = 'btjd'
 time_scale     = 'tdb'       #'tt', 'ut1', or 'utc'
-PGMETHOD       = 'lombscargle' # 'boxleastsquares'
+TLS_PERIOD_MIN = 0.01
+TLS_PERIOD_MAX = 27       # defaults to baseline/2== 3 transits!
+N_TRANSITS_MIN = 2
+DEFAULT_U      = [0.4804, 0.1867] #quadratic limb darkening for a G2V star in the Kepler bandpass
 IMAGING_SURVEY = 'DSS2 Red'
-FONTSIZE       = 16
-LOG_FILENAME   = r'tql.log'
 MAX_SECTORS    = 5           # number of sectors to analyze if target is osberved in multiple sectors
 MULTISEC_BIN   = 10*u.min    # binning for very dense data (observed >MAX_SECTORS)
+FONTSIZE       = 16
+LOG_FILENAME   = r'tql.log'
 YLIMIT       = (0.8,1.2)   # flux limits
-DEFAULT_U      = [0.4804, 0.1867] #quadratic limb darkening for a G2V star in the Kepler bandpass
+
 COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
           '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
           '#bcbd22', '#17becf', 'lime']
@@ -100,13 +103,13 @@ def get_tpf(target_coord, tic=None, apphot_method='sap',
     '''
     # sector = None searches for all tpf; which sector to download is specified later
     if tic:
-        ticstr = 'TIC {}'.format(tic)
+        ticstr = f'TIC {tic}'
         if verbose:
-            print('\nSearching mast for {}\n'.format(ticstr))
+            print(f'\nSearching mast for {ticstr}\n')
         res = lk.search_targetpixelfile(ticstr, mission=MISSION, sector=None)
     else:
         if verbose:
-            print('\nSearching mast for ra,dec=({})\n'.format(target_coord.to_string()))
+            print(f'\nSearching mast for ra,dec=({target_coord.to_string()})\n')
         res = lk.search_targetpixelfile(target_coord, mission=MISSION, sector=None)
     df = res.table.to_pandas()
 
@@ -126,16 +129,16 @@ def get_tpf(target_coord, tic=None, apphot_method='sap',
             ticid = int(df.iloc[sector_idx]['target_name'])
             fitsfilename = df.iloc[sector_idx]['productFilename']
 
-        msg='{} tpf(s) found in sector(s) {}\n'.format(len(df), all_sectors)
-        msg+='Using data from sector {} only\n'.format(sector)
+        msg=f'{len(df)} tpf(s) found in sector(s) {all_sectors}\n'
+        msg+=f'Using data from sector {sector} only\n'
         if verbose:
             logging.info(msg); print(msg)
 
         filepath = join(fitsoutdir,'mastDownload/TESS',obsid,fitsfilename)
         if not exists(filepath) or clobber:
             if verbose:
-                print('Downloading TIC {} ...\n'.format(ticid))
-            ticstr = 'TIC {}'.format(ticid)
+                print(f'Downloading TIC {ticid} ...\n')
+            ticstr = f'TIC {ticid}'
             res = lk.search_targetpixelfile(ticstr, mission=MISSION, sector=sector)
             tpf = res.download(quality_bitmask=quality_bitmask, download_dir=fitsoutdir)
         else:
@@ -187,18 +190,18 @@ def get_ffi_cutout(target_coord=None, tic=None, sector=None, #cutout_size=10,
     if tic:
         ticstr = 'TIC {}'.format(tic)
         if verbose:
-            print('\nSearching mast for {}\n'.format(ticstr))
+            print(f'\nSearching mast for {ticstr}\n')
         res = lk.search_tesscut(ticstr, sector=None)
         ticid = int(tic)
     else:
         if verbose:
-            print('\nSearching mast for ra,dec=({})\n'.format(target_coord.to_string()))
+            print(f'\nSearching mast for ra,dec=({target_coord.to_string()})\n')
         res = lk.search_tesscut(target_coord, sector=None)
         #search using eleanor
         ra, dec = target_coord.ra.deg, target_coord.dec.deg
         star = el.Source(coords=(ra,dec), sector=sector)
         ticid = int(star.tic)
-        ticstr = 'TIC {}'.format(ticid)
+        ticstr = f'TIC {ticid}'
     df = res.table.to_pandas()
 
     if len(df)>0:
@@ -299,11 +302,11 @@ def ffi_cutout_to_lc(tpf, sap_mask='threshold', aper_radius=None, percentile=Non
     raw_lc = raw_lc.remove_nans().remove_outliers().normalize()
 
     if verbose:
-        print('ndata={}\n'.format(len(raw_lc.time)))
+        print(f'ndata={len(raw_lc.time)}\n')
     #correct systematics/ filter long-term variability
     #see https://github.com/KeplerGO/lightkurve/blob/master/lightkurve/correctors.py
     if use_pld or use_sff:
-        msg = 'Applying systematics correction:\n'.format(use_gp)
+        msg = 'Applying systematics correction:\n'
         if use_pld:
             msg += 'using PLD (gp={})'.format(use_gp)
             if verbose:
@@ -317,11 +320,11 @@ def ffi_cutout_to_lc(tpf, sap_mask='threshold', aper_radius=None, percentile=Non
             npix_lim = 24
             if sap_mask=='pipeline' and npix>npix_lim:
                 #GP will create MemoryError so limit mask
-                msg = 'More than {} pixels (npix={}) are used in PLD\n'.format(npix_lim,npix)
+                msg = f'More than {npix_lim} pixels (npix={npix}) are used in PLD\n'
                 sap_mask, aper_radius = 'square', 1
                 mask = parse_aperture_mask(tpf, sap_mask=sap_mask, aper_radius=aper_radius,
                                            percentile=percentile, verbose=verbose)
-                msg += 'Try changing to --aper_mask={} (s={}; npix={}) to avoid memory error.\n'.format(aper_mask, aper_radius, mask.sum())
+                msg += f'Try changing to --aper_mask={aper_mask} (s={aper_radius}; npix={mask.sum()}) to avoid memory error.\n'
                 if verbose:
                     logging.info(msg); print(msg)
                 raise ValueError(msg)
@@ -556,7 +559,8 @@ def run_tls_on_pdcsap(target_coord=None, tic=None, sector=None, flux_type='pdcsa
         else:
             print('Using u1={:.4f},u2={:.4f} based on TIC catalog\n'.format(u1,u2))
 
-    results = model.power(u = [u1,u2], limb_dark = 'quadratic')
+    results = model.power(u=[u1,u2], limb_dark='quadratic',
+                          n_transits_min=N_TRANSITS_MIN)
     period = results.period
     t0     = results.T0
     t14    = results.duration
@@ -745,11 +749,11 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
             logging.info(msg); print(msg)
 
         # check if target is TOI from tess alerts
-        q = query_toi(tic=ticid, toi=toi, clobber=clobber,
+        q = get_toi(tic=ticid, toi=toi, clobber=clobber,
                       outdir='../data', verbose=verbose)
 
-        period, t0, t14, depth, toiid = get_transit_params(q, toi=toi,
-                                                    tic=ticid, verbose=verbose)
+        period, t0, t14, depth, toiid = get_transit_params(toi=toi,
+                                                    tic=ticid, verbose=False)
         if verbose:
             print('Generating QL figure...\n')
 
@@ -767,7 +771,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         cadence_mask_tpf = make_cadence_mask(tpf.time, period, t0,
                                              t14, verbose=verbose)
         if use_pld or use_sff:
-            msg = 'Applying systematics correction:\n'.format(use_gp)
+            msg = 'Applying systematics correction:\n'
             if use_pld:
                 msg += 'using PLD (gp={})\n'.format(use_gp)
                 if verbose:
@@ -855,6 +859,9 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
             print('Periodogram with TLS\n')
         t = flat_lc.time
         fcor = flat_lc.flux
+        idx = np.isnan(t) | np.isnan(fcor)
+        t = t[~idx]
+        fcor = fcor[~idx]
 
         # TLS
         model = transitleastsquares(t, fcor)
@@ -862,12 +869,14 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         #see defaults: https://github.com/hippke/tls/blob/master/transitleastsquares/tls_constants.py
         try:
             ((u1, u2), Ms_tic, _, _, Rs_tic, _, _) = catalog.catalog_info(TIC_ID=int(ticid))
-            Teff_tic, logg_tic, _, _, _, _, _, _ = catalog.catalog_info_TIC(int(ticid))
+            Teff_tic, logg_tic, _, Rs_min_tic, Rs_max_tic, _, _, _ = catalog.catalog_info_TIC(int(ticid))
+            Rs_err_tic = np.sqrt(Rs_min_tic**2 +Rs_max_tic**2)
             u1, u2 = DEFAULT_U if not np.all([u1, u2]) else [u1,u2]
             Rs_tic = 1.0 if Rs_tic is None else Rs_tic
             Ms_tic = 1.0 if Ms_tic is None else Ms_tic
         except:
             (u1, u2), Ms_tic, Rs_tic =  DEFAULT_U, 1.0, 1.0 #assume G2 star
+            Rs_err_tic = 0.01
             Teff_tic, logg_tic = None, None
         if verbose:
             if u1==DEFAULT_U[0] and u2==DEFAULT_U[1]:
@@ -875,13 +884,15 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
             else:
                 print('Using u1={:.4f},u2={:.4f} based on TIC catalog\n'.format(u1,u2))
 
-        results = model.power(u       = [u1,u2],
-                              limb_dark = 'quadratic',
+        results = model.power(u=[u1,u2], limb_dark='quadratic',
                               #R_star  = Rs_tic,
                               #M_star  = Ms_tic,
                               #oversampling_factor=3,
                               #duration_grid_step =1.1
                               #transit_depth_min=ppm*10**-6,
+                              period_min=TLS_PERIOD_MIN,
+                              period_max=TLS_PERIOD_MAX,
+                              n_transits_min=N_TRANSITS_MIN
                               )
         results['u'] = [u1,u2]
         results['Rstar_tic'] = Rs_tic
@@ -917,12 +928,12 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
 
         #----------ax0: tpf plot----------
         i=0
-        ax1=tpf.plot(aperture_mask=mask, #frame=10,
+        ax1=tpf.plot(aperture_mask=mask, frame=10,
                      origin='lower', ax=axs[i]);
-        ax1.text(0.95, 0.10, 'mask={}'.format(sap_mask),
+        ax1.text(0.95, 0.10, f'mask={sap_mask}',
             verticalalignment='top', horizontalalignment='right',
             transform=axs[i].transAxes, color='w', fontsize=12)
-        ax1.set_title('sector={}'.format(sector), fontsize=FONTSIZE)
+        ax1.set_title(f'sector={sector}', fontsize=FONTSIZE)
 
         #centroid shift analysis
         if (cadence_mask_tpf is None) | (np.sum(cadence_mask_tpf)==0): #non-TOIs
@@ -933,10 +944,11 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
 
         #centroid based on TIC coordinates (identical to Gaia coordinates)
         y,x=tpf.wcs.all_world2pix(np.c_[tpf.ra,tpf.dec],1)[0]
-        y+=tpf.row; x+=tpf.column
+        y=round(y); x=round(x)
+        y+=tpf.row+0.5; x+=tpf.column+0.5
         #centroid based on difference image centroid
         y2,x2 = get_2d_centroid(flux_outtransit-flux_intransit)
-        y2+=tpf.row; x2+=tpf.column
+        y2+=tpf.row-0.5; x2+=tpf.column+0.5
         # ax.matshow(flux_outtransit-flux_intransit, origin='lower')
         ax1.plot(x,y,'rx',ms=16, label='TIC')
         ax1.plot(x2,y2,'bx',ms=16, label='out-in')
@@ -965,8 +977,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         gaia_sources = Catalogs.query_region(target_coord, radius=fov_rad,
                                     catalog="Gaia", version=2).to_pandas()
         tic_sources = Catalogs.query_region(target_coord, radius=fov_rad,
-                                    catalog="TIC", #version=8
-                                    ).to_pandas()
+                                    catalog="TIC").to_pandas()
         idx = tic_sources['ID'].astype(int).isin([ticid])
         if np.any(idx):
             gaia_id = tic_sources.loc[idx,'GAIA'].values[0]
@@ -982,17 +993,23 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         nax.set_title("{0} ({1:.2f}\' x {1:.2f}\')".format(IMAGING_SURVEY,fov_rad.value),
                                                         fontsize=FONTSIZE)
         #get gaia stellar params
-        Rs_gaia, Teff_gaia = get_gaia_params(target_coord, gaia_sources,
-                                             gaia_id, verbose=False)
+        star = get_gaia_params_from_dr2(target_coord, tic=ticid,
+                gaia_sources=gaia_sources, gaia_id=gaia_id, return_star=True,
+                search_radius=fov_rad, verbose=verbose)
+        Rs_gaia, Teff_gaia = star['radius_val'], star['teff_val']
+        Rs_err_gaia = np.sqrt(star['radius_percentile_upper']**2 +
+                              star['radius_percentile_lower']**2)
 
         #----------ax2: lc plot----------
         i=2
         ax2 = raw_lc.errorbar(label='raw lc',ax=axs[i])
         #some weird outliers do not get clipped, so force ylim
         y1,y2=axs[i].get_ylim()
-        if y1<YLIMIT[0]:
+        if (y1<YLIMIT[0]) & (y2>YLIMIT[1]):
+            axs[i].set_ylim(YLIMIT[0],YLIMIT[1])
+        elif y1<YLIMIT[0]:
             axs[i].set_ylim(YLIMIT[0],y2)
-        if y2>YLIMIT[1]:
+        elif y2>YLIMIT[1]:
             axs[i].set_ylim(y1,YLIMIT[1])
 
         #plot trend in raw flux if no correction is applied in sap flux
@@ -1074,25 +1091,30 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         axs[i].plot(results.model_folded_phase-0.5, results.model_folded_model,
                     color='red', label='TLS model')
         rprs= results['rp_rs']
+        rprs_err = np.sqrt(np.nanstd(results['transit_depths']))
         t14 = results.duration*u.day.to(u.hour)
         t0  = results['T0']
 
         star_source = 'TIC'
         rstar, teff = Rs_tic, Teff_tic
-        Rp = rprs*rstar*u.Rsun.to(u.Rearth)
+        rstar_err = Rs_err_tic
         if str(rstar)=='nan':
             star_source = 'Gaia DR2'
             rstar, teff = Rs_gaia, Teff_gaia
-            Rp = rprs*rstar*u.Rsun.to(u.Rearth)
-
+            rstar_err = Rs_err_gaia
+        # Rp = rprs*rstar*u.Rsun.to(u.Rearth)
+        Rp, Rpsighi, Rpsiglo = get_Rp_monte_carlo(RpRs=(rprs, rprs_err),
+                                              Rs=(rstar, rstar_err),
+                                              verbose=False)
+        Rp_err = np.sqrt(Rpsighi**2+Rpsiglo**2)
         text1 = 'Rp/Rs={:.4f}\nt14={:.2f} hr\nt0={:.6f}'.format(rprs, t14, t0)
-        text2 = 'Source: {}\nRs={:.2f} Rsun\nTeff={:.2f} K\nRp={:.2f} Re'.format(star_source, rstar, teff, Rp)
+        text2 = "Source: {}\nRs={:.2f}+/-{:.2f} Rsun\nTeff={:.0f} K\nRp={:.2f}+/-{:.2f} Re".format(star_source, rstar, rstar_err, teff, Rp, Rp_err)
         if verbose:
             print(f'{text1}\n\n{text2}')
         axs[i].text(0.3, 0.25, text1,
                 verticalalignment='top', horizontalalignment='left',
                 transform=axs[i].transAxes, color='g', fontsize=FONTSIZE)
-        axs[i].text(0.7, 0.25, text2,
+        axs[i].text(0.6, 0.3, text2,
                 verticalalignment='top', horizontalalignment='left',
                 transform=axs[i].transAxes, color='g', fontsize=FONTSIZE)
         axs[i].set_xlim(-0.2,0.2)
@@ -1115,7 +1137,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
             results['Rs_gaia'] = Rs_gaia
             results['Teff_gaia'] = Teff_gaia
             results['Rp'] = Rp
-            fp = join(figoutdir,'tic{}_s{}_{}_tls.hdf5'.format(tpf.targetid,sector,cad))
+            fp = join(figoutdir,f'tic{tpf.targetid}_s{sector}_{cad}_tls.hdf5')
             if savefig:
                 dd.io.save(fp, results)
                 print(f'Saved: {fp}\n')
@@ -1123,15 +1145,15 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         if toi or toiid:
             #toiid is TOIXXX determined from TESS release queried using TIC or coordinates
             id = toi if toi is not None else toiid
-            figname='TIC{}_TOI{}_s{}_{}.png'.format(tpf.targetid, str(id),sector,cad)
-            lcname1='TIC{}_TOI{}_s{}_lc_flat_{}.txt'.format(tpf.targetid, str(id),sector,cad)
-            lcname2='TIC{}_TOI{}_s{}_lc_fold_{}.txt'.format(tpf.targetid, str(id),sector,cad)
-            pl.suptitle('TIC {} (TOI {})'.format(ticid,id), fontsize=FONTSIZE)
+            figname=f'TIC{tpf.targetid}_TOI{str(id)}_s{sector}_{cad}.png'
+            lcname1=f'TIC{tpf.targetid}_TOI{str(id)}_s{sector}_lc_flat_{cad}.txt'
+            lcname2=f'TIC{tpf.targetid}_TOI{str(id)}_s{sector}_lc_fold_{cad}.txt'
+            pl.suptitle(f'TIC {ticid} (TOI {id})', fontsize=FONTSIZE)
         else:
-            figname='TIC{}_s{}_{}.png'.format(str(tpf.targetid),sector,cad)
-            lcname1='TIC{}_s{}_lc_flat_{}.txt'.format(str(tpf.targetid),sector,cad)
-            lcname2='TIC{}_s{}_lc_fold_{}.txt'.format(str(tpf.targetid),sector,cad)
-            pl.suptitle('TIC {}'.format(ticid), fontsize=FONTSIZE)
+            figname=f'TIC{tpf.targetid}_s{sector}_{cad}.png'
+            lcname1=f'TIC{tpf.targetid}_s{sector}_lc_flat_{cad}.txt'
+            lcname2=f'TIC{tpf.targetid}_s{sector}_lc_fold_{cad}.txt'
+            pl.suptitle(f'TIC {ticid}', fontsize=FONTSIZE)
         figoutpath=join(figoutdir,figname)
         lcoutpath1 =join(figoutdir,lcname1)
         lcoutpath2 =join(figoutdir,lcname2)
@@ -1150,7 +1172,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
             logging.info(msg); print(msg)
         pl.close()
     except:
-        print('Error occured:\n{}'.format(traceback.format_exc()))
+        print(f'Error occured:\n{traceback.format_exc()}')
         print_recommendations()
         #print('tpf size=(x,x) pix seems too big\n\n')
         logging.error(str(traceback.format_exc()))
@@ -1210,13 +1232,13 @@ def generate_all_lc(target_coord,toi=None,tic=None,
     start = time.time()
     try:
         if verbose:
-            print('\nSearching mast for ra,dec=({})\n'.format(target_coord.to_string()))
+            print(f'\nSearching mast for ra,dec=({target_coord.to_string()})\n')
         #search for tpf
         #sector=None searches all available tpf
         #sector to be used is specified later
         if tic:
             #search by tic
-            ticstr = 'TIC {}'.format(tic)
+            ticstr = f'TIC {tic}'
             res = lk.search_targetpixelfile(ticstr, mission=MISSION, sector=None)
         else:
             #search by coordinates
@@ -1232,12 +1254,13 @@ def generate_all_lc(target_coord,toi=None,tic=None,
              logging.info(msg)
              print(msg)
         elif len(df)>1:
-            msg='#----------TIC {}----------#\n'.format(ticid)
+            msg=f'#----------TIC {ticid}----------#\n'
             logging.info(msg)
 
             # check if target is TOI from TESS alerts
             ticid = int(df.iloc[0]['target_name'])
-            q = query_toi(tic=ticid, toi=toi, clobber=clobber, outdir='../data', verbose=verbose)
+            q = get_toi(tic=ticid, toi=toi, clobber=clobber,
+                        outdir='../data', verbose=verbose)
 
             if len(df)>1:
                 #if tic is observed in multiple sectors
@@ -1247,17 +1270,17 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                     #reduce all sectors to specified sectors
                     all_sectors = np.array(all_sectors)[sector_idx]
                     if verbose:
-                        print('Analyzing data from sectors: {}\n'.format(sectors))
+                        print(f'Analyzing data from sectors: {sectors}\n')
                 else:
                     #use all sectors
                     sector_idx=range(len(df))
                     if verbose:
-                        print('Downloading all sectors: {}\n'.format(all_sectors))
+                        print(f'Downloading all sectors: {all_sectors}\n')
             else:
                 #if tic is observed only once, take first available sector
                 sector_idx=[0]
 
-            msg+='Using data from sectors {}\n'.format(all_sectors)
+            msg+=f'Using data from sectors {all_sectors}\n'
             if verbose:
                 logging.info(msg); print(msg)
 
@@ -1274,16 +1297,16 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                 filepath = join(fitsoutdir,'mastDownload/TESS',obsid,fitsfilename)
                 if not exists(filepath) or clobber:
                     if verbose:
-                        print('Downloading TIC {} (sector {})...\n'.format(ticid,sector))
+                        print(f'Downloading TIC {ticid} (sector {sector})...\n')
                     #re-search tpf with specified sector
                     #FIXME: related issue: https://github.com/KeplerGO/lightkurve/issues/533
-                    ticstr = 'TIC {}'.format(ticid)
+                    ticstr = f'TIC {ticid}'
                     tpf = lk.search_targetpixelfile(ticstr, mission=MISSION,
                             sector=sector).download(quality_bitmask=quality_bitmask,
                                                     download_dir=fitsoutdir)
                 else:
                     if verbose:
-                        print('Loading TIC {} (sector {}) from {}/...\n'.format(ticid,sector,fitsoutdir))
+                        print(f'Loading TIC {ticid} (sector {sector}) from {fitsoutdir}/...\n')
                     tpf = lk.TessTargetPixelFile(filepath)
                 assert tpf.mission==MISSION
 
@@ -1303,21 +1326,22 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                     tpf = remove_bad_data(tpf,sector,verbose=verbose)
 
                 #make aperture mask
-                mask = parse_aperture_mask(tpf, sap_mask=sap_mask,
-                       aper_radius=aper_radius, percentile=percentile, verbose=verbose)
+                mask = parse_aperture_mask(tpf, sap_mask=sap_mask, verbose=verbose,
+                       aper_radius=aper_radius, percentile=percentile)
 
                 tpfs.append(tpf)
                 masks.append(mask)
                 # sectors.append(sector)
 
             #query tess alerts/ toi release
-            period, t0, t14, depth, toiid = get_transit_params(q, toi=toi,
-                                            tic=ticid, verbose=verbose)
+            period, t0, t14, depth, toiid = get_transit_params(toi=toi,
+                                            tic=ticid, verbose=False)
 
             #------------------------create figure-----------------------#
             #FIXME: line below is run again after here to define projection
             if verbose:
-                print('Querying {0} ({1:.2f} x {1:.2f}) archival image\n'.format(IMAGING_SURVEY,fov_rad))
+                print('Querying {0} ({1:.2f} x {1:.2f}) archival image\n'
+                        .format(IMAGING_SURVEY,fov_rad))
             ax, hdu = plot_finder_image(target_coord, fov_radius=fov_rad,
                                         survey=IMAGING_SURVEY, reticle=True)
             pl.close()
@@ -1336,12 +1360,12 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             i=0
             tpf = tpfs[i]
             mask = masks[i]
-            ax1=tpf.plot(aperture_mask=mask, #frame=10,
+            ax1=tpf.plot(aperture_mask=mask, frame=10,
                          origin='lower', ax=ax[i]);
-            ax1.text(0.95, 0.10, 'mask={}'.format(sap_mask),
+            ax1.text(0.95, 0.10, f'mask={sap_mask}',
                 verticalalignment='top', horizontalalignment='right',
                 transform=ax[i].transAxes, color='w', fontsize=12)
-            ax1.set_title('sector={}'.format(all_sectors[i]), fontsize=FONTSIZE)
+            ax1.set_title(f'sector={all_sectors[i]}', fontsize=FONTSIZE)
 
             cadence_mask_tpf = make_cadence_mask(tpf.time, period, t0, t14)
             #centroid shift analysis
@@ -1352,10 +1376,11 @@ def generate_all_lc(target_coord,toi=None,tic=None,
 
                 #centroid based on TIC coordinates (identical to Gaia coordinates)
                 y,x=tpf.wcs.all_world2pix(np.c_[tpf.ra,tpf.dec],1)[0]
-                y+=tpf.row; x+=tpf.column
+                y=round(y); x=round(x)
+                y+=tpf.row+0.5; x+=tpf.column+0.5
                 #centroid based on difference image centroid
                 y2,x2 = get_2d_centroid(flux_outtransit-flux_intransit)
-                y2+=tpf.row; x2+=tpf.column
+                y2+=tpf.row+0.5; x2+=tpf.column+0.5
                 # ax.matshow(flux_outtransit-flux_intransit, origin='lower')
                 ax1.plot(x,y,'rx',ms=16, label='TIC')
                 ax1.plot(x2,y2,'bx',ms=16, label='out-in')
@@ -1379,8 +1404,8 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                 nax.scatter(pix[0], pix[1], marker='s', s=100, edgecolor='r',
                                                             facecolor='none')
             pl.setp(nax, xlim=(0,mx), ylim=(0,my))
-            nax.set_title("{0} ({1:.2f}\' x {1:.2f}\')".format(IMAGING_SURVEY,fov_rad.value),
-                                                            fontsize=FONTSIZE)
+            nax.set_title("{0} ({1:.2f}\' x {1:.2f}\')".format(IMAGING_SURVEY,
+                                            fov_rad.value), fontsize=FONTSIZE)
 
             #get gaia stellar params
             tic_sources = Catalogs.query_region(target_coord, radius=fov_rad,
@@ -1393,7 +1418,10 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             else:
                 gaia_id = None
 
-            Rs_gaia, Teff_gaia = get_gaia_params(target_coord,gaia_sources,gaia_id,verbose=False)
+            star = get_gaia_params_from_dr2(target_coord, tic=ticid,
+                    gaia_sources=gaia_sources, gaia_id=gaia_id, return_star=True,
+                    search_radius=fov_rad, verbose=verbose)
+            Rs_gaia, Teff_gaia = star['radius_val'], star['teff_val']
 
             lcs = []
             corr_lcs = []
@@ -1405,7 +1433,7 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             cdpps_raw = []
             cdpps_corr = []
             for j,n in tqdm(enumerate(sector_idx)):
-                print('\n----------sector {}----------\n'.format(all_sectors[j]))
+                print(f'\n----------sector {all_sectors[j]}----------\n')
                 tpf = tpfs[j]
                 mask = masks[j]
                 maskhdr = tpf.hdu[2].header
@@ -1438,9 +1466,9 @@ def generate_all_lc(target_coord,toi=None,tic=None,
 
                 #correct systematics/ filter long-term variability
                 if use_pld or use_sff:
-                    msg = 'Applying systematics correction:\n'.format(use_gp)
+                    msg = 'Applying systematics correction:\n'
                     if use_pld:
-                        msg += 'using PLD (gp={})'.format(use_gp)
+                        msg += f'using PLD (gp={use_gp})'
                         if verbose:
                             logging.info(msg); print(msg)
                         # pld = tpf.to_corrector(method='pld')
@@ -1525,13 +1553,13 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                 else:
                     cadence_in_minutes = 30*u.minute
                 #count binsize given old and new cadences
-                msg='Number of sectors exceeds {} (ndata={}).\n'.format(MAX_SECTORS,len(t))
+                msg=f'Number of sectors exceeds {MAX_SECTORS} (ndata={len(t)}).\n'
                 binsize=int(MULTISEC_BIN.to(cadence_in_minutes).value)
                 t = binned(t, binsize=binsize)
                 f = binned(f, binsize=binsize)
                 e = binned(e, binsize=binsize)
                 tr= binned(tr, binsize=binsize)
-                msg+='Data was binned to {} (ndata={}).\n'.format(MULTISEC_BIN,len(t))
+                msg+=f'Data was binned to {MULTISEC_BIN} (ndata={len(t)}).\n'
                 if verbose:
                     logging.info(msg); print(msg)
 
@@ -1547,8 +1575,10 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                 u1, u2 = DEFAULT_U if not np.all([u1, u2]) else [u1,u2]
                 Rs_tic = 1.0 if Rs_tic is None else Rs_tic
                 Ms_tic = 1.0 if Ms_tic is None else Ms_tic
+                star_source = 'TIC'
             except:
                 (u1, u2), Ms_tic, Rs_tic =  DEFAULT_U, 1.0, 1.0 #assume G2 star
+                star_source = 'default'
             if verbose:
                 if u1==DEFAULT_U[0] and u2==DEFAULT_U[1]:
                     print('Using default limb-darkening coefficients\n')
@@ -1556,14 +1586,15 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                     print('Using u1={:.4f},u2={:.4f} based on TIC catalog\n'.format(u1,u2))
 
             #FIXME: limit period allowing single transits for each sector
-            results = model.power(u       = [u1,u2],
-                                  limb_dark = 'quadratic',
+            results = model.power(u=[u1,u2], limb_dark='quadratic',
                                   #R_star  = Rs_tic,
                                   #M_star  = Ms_tic,
                                   #oversampling_factor=3,
                                   #duration_grid_step =1.1
                                   #transit_depth_min=ppm*10**-6,
-                                  period_max = 27,
+                                  period_min=TLS_PERIOD_MIN,
+                                  period_max=TLS_PERIOD_MAX,
+                                  n_transits_min=N_TRANSITS_MIN
                                   )
             results['u'] = [u1,u2]
             results['Rstar_tic'] = Rs_tic
@@ -1590,9 +1621,11 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                       label='s{}: {:.2f}'.format(sec,cdpp), ax=ax[i])
             #some weird outliers do not get clipped, so force ylim
             y1,y2=ax[i].get_ylim()
-            if y1<YLIMIT[0]:
+            if (y1<YLIMIT[0]) & (y2>YLIMIT[1]):
+                ax[i].set_ylim(YLIMIT[0],YLIMIT[1])
+            elif y1<YLIMIT[0]:
                 ax[i].set_ylim(YLIMIT[0],y2)
-            if y2>YLIMIT[1]:
+            elif y2>YLIMIT[1]:
                 ax[i].set_ylim(y1,YLIMIT[1])
 
             if use_pld==use_sff==False:
@@ -1608,14 +1641,16 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                 #----------ax3: systematics-corrected----------
                 for corr_lc,col,sec in zip(corr_lcs,colors,all_sectors):
                     cdpp = corr_lc.flatten().estimate_cdpp()
-                    ax3 = corr_lc.errorbar(color=col, label='s{}: {:.2f}'.format(sec,cdpp), ax=ax[i])
+                    ax3 = corr_lc.errorbar(color=col,
+                            label='s{}: {:.2f}'.format(sec,cdpp), ax=ax[i])
                 ax[i].legend(title='corr lc cdpp', loc='upper left')
                 ax[i].plot(t, tr, color='r', linewidth=3, label='Savgol_filter')
             else:
                 #ax1 long-term variability-corrected
                 for flat_lc,col,sec in zip(flat_lcs,colors,all_sectors):
                     cdpp = flat_lc.estimate_cdpp()
-                    ax3 = flat_lc.errorbar(color=col, label='s{}: {:.2f}'.format(sec,cdpp), ax=ax[i])
+                    ax3 = flat_lc.errorbar(color=col,
+                            label='s{}: {:.2f}'.format(sec,cdpp), ax=ax[i])
                 ax[i].legend(title='flat lc cdpp', loc='upper left')
 
             if np.all([results.period,results.T0]):
@@ -1626,7 +1661,7 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                         ax[i].axvline(tt, 0, 1, linestyle='--', color='k', alpha=0.5)
                 except:
                     pass
-            text = 'PLD={} (gp={}), SFF={}'.format(use_pld,use_gp,use_sff)
+            text = f'PLD={use_pld} (gp={use_gp}), SFF={use_sff}'
             ax[i].text(0.95, 0.15, text,
                 verticalalignment='top', horizontalalignment='right',
                 transform=ax[i].transAxes, color='green', fontsize=15)
@@ -1688,24 +1723,26 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             else:
                 gaia_id = None
 
-            Rs_gaia, Teff_gaia = get_gaia_params(target_coord,gaia_sources,gaia_id,verbose=False)
+            star = get_gaia_params_from_dr2(target_coord, tic=ticid,
+                    gaia_sources=gaia_sources, gaia_id=gaia_id, return_star=True,
+                    search_radius=fov_rad, verbose=verbose)
+            Rs_gaia, Teff_gaia = star['radius_val'], star['teff_val']
 
-            star_source = 'tic'
             rstar, teff = Rs_tic, Teff_tic
             Rp = rprs*rstar*u.Rsun.to(u.Rearth)
             if str(rstar)=='nan':
-                star_source = 'gaia'
+                star_source = 'Gaia'
                 rstar, teff = Rs_gaia, Teff_gaia
                 Rp = rprs*rstar*u.Rsun.to(u.Rearth)
 
             text1 = 'Rp/Rs={:.4f}\nt14={:.2f} hr\nt0={:.6f}'.format(rprs, t14, t0)
-            text2 = 'Source: {}\nRs={:.2f} Rsun\nTeff={:.2f} K\nRp={:.2f} Re'.format(star_source, rstar, teff, Rp)
+            text2 = 'Source: {}\nRs={:.2f} Rsun\nTeff={:.0f} K\nRp={:.2f} Re'.format(star_source, rstar, teff, Rp)
             if verbose:
                 print(f'{text1}\n\n{text2}')
             ax[i].text(0.3, 0.25, text1,
                     verticalalignment='top', horizontalalignment='left',
                     transform=ax[i].transAxes, color='g', fontsize=FONTSIZE)
-            ax[i].text(0.7, 0.25, text2,
+            ax[i].text(0.6, 0.3, text2,
                     verticalalignment='top', horizontalalignment='left',
                     transform=ax[i].transAxes, color='g', fontsize=FONTSIZE)
 
@@ -1724,6 +1761,7 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                 results['sector'] = all_sectors
                 results['Rs_gaia'] = Rs_gaia
                 results['Teff_gaia'] = Teff_gaia
+                results['Rs source'] = star_source
                 results['Rp'] = Rp
 
                 fp = join(figoutdir,'tic{}_s{}_tls.hdf5'.format(tpf.targetid,'-'.join(all_sectors)))
@@ -1768,7 +1806,7 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             if verbose:
                 print(msg)
     except:
-        print('Error occured:\n{}'.format(traceback.format_exc()))
+        print(f'Error occured:\n{traceback.format_exc()}')
         print_recommendations()
         logging.error(str(traceback.format_exc()))
     #save logs
@@ -1838,8 +1876,8 @@ def generate_FOV(target_coord,tic=None,toi=None,sector=None,
         else:
             ticid = df['target_name'].values[0]
         #query tess alerts/ toi release
-        q = query_toi(tic=ticid, toi=toi, clobber=clobber, outdir='../data', verbose=False)
-        period, t0, t14, depth, toiid = get_transit_params(q, toi=toi, tic=ticid, verbose=False)
+        q = get_toi(tic=ticid, toi=toi, clobber=clobber, outdir='../data', verbose=False)
+        period, t0, t14, depth, toiid = get_transit_params(toi=toi, tic=ticid, verbose=False)
 
         if verbose:
             print('Querying {0} ({1:.2f} x {1:.2f}) archival image'.format('DSS2 Blue',fov_rad))
@@ -1916,77 +1954,9 @@ def generate_FOV(target_coord,tic=None,toi=None,sector=None,
         pl.close()
 
     except:
-        print('Error occured:\n{}'.format(traceback.format_exc()))
+        print(f'Error occured:\n{traceback.format_exc()}')
         print_recommendations()
         logging.error(str(traceback.format_exc()))
-
-def query_toi(toi=None, tic=None, clobber=True, outdir='../data', verbose=True):
-    """Query TOI from TOI list
-
-    Parameters
-    ----------
-    tic : int
-        TIC id
-    toi : float
-        TOI id
-    clobber : bool
-        re-download csv file
-    outdir : str
-        csv path
-    verbose : bool
-        print texts
-
-    Returns
-    -------
-    q : pandas.DataFrame
-        TOI match else None
-    """
-    assert np.any([tic,toi]), 'Supply toi or tic'
-    #TOI csv file from TESS alerts
-    dl_link = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv'
-    fp = join(outdir,'TOIs.csv')
-
-    if not exists(outdir):
-        os.makedirs(outdir)
-
-    if not exists(fp) or clobber:
-        d = pd.read_csv(dl_link)
-        d.to_csv(fp, index=False)
-        print(f'Saved: {fp}\n')
-    else:
-        d = pd.read_csv(fp)
-        #if verbose:
-        #    print('Loaded: {}\n'.format(fp))
-
-    if tic:
-        q=d[d['TIC ID']==tic]
-        #return if empty, else continue
-        if len(q)==0:
-            return []
-    else:
-        if isinstance(toi, int):
-            toi = float(str(toi)+'.01')
-        else:
-            planet = str(toi).split('.')[1]
-            assert len(planet)==2, 'use pattern: TOI.01'
-        q = d[d['TOI']==toi]
-
-    if verbose:
-        tic = q['TIC ID'].values[0]
-        per = q['Period (days)'].values[0]
-        t0  = q['Epoch (BJD)'].values[0]
-        t14 = q['Duration (hours)'].values[0]
-        dep = q['Depth (ppm)'].values[0]
-        comments=q[['TOI','Comments']].values
-        print('Data from TOI Releases:\nTIC ID\t{}\nP(d)\t{}\nT0(BJD)\t{} \
-               \nT14(hr)\t{}\ndepth(ppm)\t{}\n'.format(tic,per,t0,t14,dep))
-        print('TOI Release Comment:\n{}\n'.format(comments))
-
-    if q['TFOPWG Disposition'].isin(['FP']).any():
-        print('\nTFOPWG disposition is a False Positive!\n')
-
-    return q.sort_values(by='TOI')
-
 
 def get_tois(clobber=True, outdir='../data', verbose=False,
              remove_FP=True, remove_known_planets=True):
@@ -2034,14 +2004,93 @@ def get_tois(clobber=True, outdir='../data', verbose=False,
 
     return d.sort_values('TOI')
 
-def get_transit_params(q, toi=None, tic=None, verbose=False):
-    ''' '''
+def get_Rp_monte_carlo(RpRs, Rs, nsamples=10000, verbose=True):
+    '''Monte Carlo estimation of planet radius
+
+    Parameters
+    ----------
+    RoRs : tuple (val,err)
+        Rp/Rs = sqrt(transit depth)
+    Rs : tuple (val,err)
+        stellar radius
+    nsamples : int
+        number of samples
+
+    Returns
+    -------
+    Rp : tuple (val, -siglo, +sighi)
+        planet radius [Rearth]
+    '''
+
+    RpRs_s = np.random.rand(nsamples)*RpRs[1] + RpRs[0]
+    Rs_s = np.random.rand(nsamples)*Rs[1] + Rs[0]
+
+    med,lo,hi=np.percentile(RpRs_s*Rs_s, [50, 16, 84])*u.Rsun.to(u.Rearth)
+    if verbose:
+        print(f'Range: {lo},{hi}')
+        print(f'{med} -{med-lo} +{hi-med}')
+    return (med,med-lo,hi-med)
+
+def get_toi(toi=None, tic=None, clobber=True, outdir='../data', verbose=True):
+    """Query TOI from TOI list
+
+    Parameters
+    ----------
+    tic : int
+        TIC id
+    toi : float
+        TOI id
+    clobber : bool
+        re-download csv file
+    outdir : str
+        csv path
+    verbose : bool
+        print texts
+
+    Returns
+    -------
+    q : pandas.DataFrame
+        TOI match else None
+    """
+
+    df = get_tois(clobber=clobber, verbose=verbose, outdir=outdir)
+
+    if toi:
+        if isinstance(toi, int):
+            toi = float(str(toi)+'.01')
+        else:
+            planet = str(toi).split('.')[1]
+            assert len(planet)==2, 'use pattern: TOI.01'
+        idx = df['TOI'].isin([toi])
+    elif tic:
+        idx = df['TIC ID'].isin([tic])
+    q=df.loc[idx]
+    #return if empty, else continue
+    if len(q)==0:
+        raise ValueError('TOI not found!')
+
+    q.index = q['TOI'].values
+    if verbose:
+        print('Data from TOI Release:\n')
+        columns = ['Period (days)','Epoch (BJD)','Duration (hours)','Depth (ppm)','Comments']
+        print(f'{q[columns].T}\n')
+
+    if q['TFOPWG Disposition'].isin(['FP']).any():
+        print('\nTFOPWG disposition is a False Positive!\n')
+
+    return q.sort_values(by='TOI', ascending=True)
+
+def get_transit_params(toi=None, tic=None, clobber=False, verbose=False, outdir='./data/'):
+    '''
+    '''
+
+    q = get_toi(toi=toi, tic=tic, clobber=clobber, verbose=verbose, outdir=outdir)
     if len(q)>0:
-        if toi:
+        if toi is not None:
             toiid = str(toi).split('.')[0]
-            assert toi in q['TOI'].values, 'toi not found!'
+            assert toi in q['TOI'].values, f"{toi} not found! Check: {q['TOI'].values}"
             planet_num = int(str(toi).split('.')[1])
-            idx = planet_num-1
+            idx = planet_num-1 if len(q)>1 else 0
             period = q['Period (days)'].values[idx]
             t0     = q['Epoch (BJD)'].values[idx]
             t14    = q['Duration (hours)'].values[idx]*u.hour.to(u.day)
@@ -2077,7 +2126,7 @@ def get_transit_params(q, toi=None, tic=None, verbose=False):
         #target is not a TOI
         period, t0, t14, depth = None, None, None, None
         toiid = None
-    return period, t0, t14, depth, toiid
+    return (period, t0, t14, depth, toiid)
 
 
 def make_cadence_mask(time, period, t0, t14=0.5, padding=0.5, verbose=False):
@@ -2160,10 +2209,28 @@ def plot_gaia_sources(target_coord, gaia_sources, survey='DSS2 Blue', verbose=Tr
     nax.set_title("{0} ({1:.2f}\' x {1:.2f}\')".format(survey,fov_rad.value), fontsize=FONTSIZE)
     return nax, img
 
+def get_gaia_params_from_tic(target_coord=None, toi=None, tic=None):
+    if not np.any([target_coord, tic, toi, gaia_id]):
+        raise ValueError('Provide target_coord or toi or tic')
+    tic_sources = Catalogs.query_region(target_coord, radius=radius,
+                            catalog="TIC", #version=8
+                            ).to_pandas()
+    return tic_sources
 
-def get_gaia_params(target_coord, gaia_sources, gaia_id=None, verbose=True):
-    '''Get rstar and teff'''
-    gcoords=SkyCoord(ra=gaia_sources['ra'],dec=gaia_sources['dec'],unit='deg')
+def get_gaia_params_from_dr2(target_coord=None, toi=None, tic=None, gaia_id=None,
+        gaia_sources=None, return_basic=False, return_phot=False, return_star=False,
+        verbose=False, search_radius=10*u.arcsec):
+    ''' '''
+    if not np.any([target_coord, tic, toi]):
+        raise ValueError('Provide target_coord or toi or tic')
+    if toi or tic:
+        q = get_toi(tic=tic, toi=toi, clobber=False, outdir='../data', verbose=False)
+        target_coord = SkyCoord(ra=q['RA'], dec=q['Dec'], unit=(u.hourangle,u.deg))[0]
+        Tmag = q['TESS Mag'].values[0]
+    if gaia_sources is None:
+        gaia_sources = Catalogs.query_region(target_coord, radius=search_radius,
+        catalog="Gaia", version=2).to_pandas()
+    gcoords=SkyCoord(ra=gaia_sources['ra'], dec=gaia_sources['dec'], unit='deg')[0]
     #FIXME: may not correspond to the host if binary or has confusing background star
     if gaia_id is not None:
         #search gaia id
@@ -2171,10 +2238,46 @@ def get_gaia_params(target_coord, gaia_sources, gaia_id=None, verbose=True):
     else:
         #assume closest coordinate match
         idx = target_coord.separation(gcoords).argmin()
-    star = gaia_sources.iloc[idx]
+        gaia_id = int(gaia_sources.loc[idx,'source_id'])
+    #perform match
+    d = gaia_sources.iloc[idx]
+    #FIXME: compute Tmag using ticgen
 
-    if star['astrometric_excess_noise_sig']>2:
-        print('The target has significant astrometric excess noise: {:.2f}\n'.format(star['astrometric_excess_noise_sig']))
+    # T = Star(Gmag=d['phot_g_mean_mag'])
+    # assert abs(T - Tmag)<1, '|G-T|>1'
+    params = d.index
+    d.name = gaia_id
+
+    if len(d)>1:
+        print('\nThere are {} Gaia sources within r={:.2f} of ra={:.2f} dec={:.2f}\n'
+            .format(len(d), search_radius,target_coord.ra.deg, target_coord.dec.deg))
+
+    if return_basic:
+        idx1 = [10,11,12,13,14,15,16,33,34,67,68]
+        vals = d[params[idx1]]
+        if verbose:
+            print(f'{vals}\n')
+        return vals
+
+    elif return_phot: #photometry
+        idx2 = [51,56,61]
+        vals = d[params[idx2]]
+        if verbose:
+            print(f'{vals}\n')
+        return vals
+
+    elif return_star: #stellar
+        idx3 = [78,79,80,88,89,90,81,82,83]
+        vals = d[params[idx3]]
+        if verbose:
+            print(f'{vals}\n')
+        return vals
+
+    else:
+        return d
+
+    if d['astrometric_excess_noise_sig']>2:
+        print('The target has significant astrometric excess noise: {:.2f}\n'.format(d['astrometric_excess_noise_sig']))
     rstar = star['radius_val']
     rstar_lo = rstar-star['radius_percentile_lower']
     rstar_hi = star['radius_percentile_upper']-rstar
@@ -2620,8 +2723,9 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
             ticid = tpf.targetid
         else:
             ticid = df['target_name'].values[0]
-        q = query_toi(tic=ticid, toi=toi, clobber=clobber, outdir='../data', verbose=verbose)
-        period, t0, t14, depth, toiid = get_transit_params(q, toi=toi, tic=ticid, verbose=verbose)
+
+        q = get_toi(tic=ticid, toi=toi, clobber=clobber, outdir='../data', verbose=verbose)
+        period, t0, t14, depth, toiid = get_transit_params(toi=toi, tic=ticid, verbose=False)
 
         maskhdr = tpf.hdu[2].header
         tpfwcs = WCS(maskhdr)
@@ -2652,7 +2756,12 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
             gaia_id = None
 
         #get gaia stellar params
-        Rs_gaia, Teff_gaia = get_gaia_params(target_coord,gaia_sources,gaia_id,verbose=False)
+        star = get_gaia_params_from_dr2(target_coord, tic=ticid,
+                gaia_sources=gaia_sources, gaia_id=gaia_id, return_star=True,
+                search_radius=fov_rad, verbose=verbose)
+        Rs_gaia, Teff_gaia = star['radius_val'], star['teff_val']
+        Rs_err_gaia = np.sqrt(star['radius_percentile_upper']**2 +
+                              star['radius_percentile_lower']**2)
         #plot gaia sources on archival image
         nax, archival_img = plot_gaia_sources(target_coord, gaia_sources, verbose=verbose,
                              survey='DSS2 Blue', fov_rad=fov_rad, reticle=True, ax=ax2)
@@ -2792,7 +2901,8 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
                 else:
                     print('Using u1={:.4f},u2={:.4f} based on TIC catalog\n'.format(u1,u2))
 
-            results = model.power(u=[u1,u2], limb_dark='quadratic')
+            results = model.power(u=[u1,u2], limb_dark='quadratic',
+                                  n_transits_min=N_TRANSITS_MIN)
             results['u'] = [u1,u2]
             results['Rstar_tic'] = Rs_tic
             results['Mstar_tic'] = Ms_tic
@@ -2843,20 +2953,19 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
 
             star_source = 'tic'
             rstar, teff = Rs_tic, Teff_tic
-            Rp = rprs*rstar*u.Rsun.to(u.Rearth)
             if str(rstar)!='nan':
                 star_source = 'gaia'
                 rstar, teff = Rs_gaia, Teff_gaia
-                Rp = rprs*rstar*u.Rsun.to(u.Rearth)
+            Rp = rprs*rstar*u.Rsun.to(u.Rearth)
 
             text1 = 'Rp/Rs={:.4f}\nt14={:.2f} hr\nt0={:.6f}'.format(rprs, t14, t0)
-            text2 = 'Source: {}\nRs={:.2f} Rsun\nTeff={:.2f} K\nRp={:.2f} Re'.format(star_source, rstar, teff, Rp)
+            text2 = 'Source: {}\nRs={:.2f} Rsun\nTeff={:.0f} K\nRp={:.2f} Re'.format(star_source, rstar, teff, Rp)
             if verbose:
                 print(f'{text1}\n\n{text2}')
             ax.text(0.3, 0.25, text1,
                     verticalalignment='top', horizontalalignment='left',
                     transform=ax.transAxes, color='g', fontsize=FONTSIZE)
-            ax.text(0.7, 0.25, text2,
+            ax.text(0.6, 0.3, text2,
                     verticalalignment='top', horizontalalignment='left',
                     transform=ax.transAxes, color='g', fontsize=FONTSIZE)
             ax.set_xlim(-0.2,0.2)
@@ -2866,12 +2975,12 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
 
         if toi or toiid:
             id = toi if toi is not None else toiid
-            figname='TIC{}_TOI{}_FOV_s{}_pla.png'.format(tic,id,sector)
-            pl.suptitle('TIC {} (TOI {})'.format(ticid,id), fontsize=FONTSIZE)
+            figname=f'TIC{tic}_TOI{id}_FOV_s{sector}_pla.png'
+            pl.suptitle(f'TIC {ticid} (TOI {id})', fontsize=FONTSIZE)
         else:
             ticid = tpf.targetid
-            figname='TIC{}_FOV_s{}_pla.png'.format(ticid,sector)
-            pl.suptitle('TIC {}'.format(ticid), fontsize=FONTSIZE)
+            figname=f'TIC{ticid}_FOV_s{sector}_pla.png'
+            pl.suptitle(f'TIC {ticid}', fontsize=FONTSIZE)
         figoutpath=join(figoutdir,figname)
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
@@ -2887,7 +2996,7 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
         pl.close()
 
     except:
-        print('Error occured:\n{}'.format(traceback.format_exc()))
+        print(f'Error occured:\n{traceback.format_exc()}')
         print_recommendations()
 
 def getDistance(x1, y1, x2, y2):
@@ -2931,7 +3040,8 @@ def print_recommendations():
     print('Try -no_gp if [MemoryError: std::bad_alloc]')
     print('Try --aper={pipeline,threshold,percentile,all} if [assert k <= min(m, n)] or tpf seems corrupted')
     print('Re-run tql if [json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)]')
-    print('Re-run tql if [TypeError: unsupported format string passed to NoneType.__format__]\n')
+    print('Re-run tql if [TypeError: unsupported format string passed to NoneType.__format__]')
+    print('Check internet connection if [Failed to establish a new connection]\n')
 
 
 def catch_IERS_warning():
@@ -2956,11 +3066,34 @@ def catch_IERS_warning():
             from astroplan import download_IERS_A
             download_IERS_A()
 
+def get_1805_open_clusters(loc='../data/'):
+    '''Dias+2014: https://ui.adsabs.harvard.edu/abs/2014yCat....102022D/abstract'''
+    fp = join(loc,'TablesDias2014/Table2_1805_open_clusters.tsv')
+    df = pd.read_csv(fp, delimiter='\t',comment='#')
+    return df
+
+def get_269_open_clusters(loc='../data/'):
+    '''Bossini+2019'''
+    fp = join(loc,'Bossini2019_269_open_clusters.tsv')
+    df = pd.read_table(fp, delimiter='\t', skiprows=69, comment='#')
+    #convert distance and age
+    df['D_est[pc]'] = Distance(distmod=df['Dist']).pc
+    df['Age[Myr]'] = 10**df['logA']/1e6
+    #rename Dist to Dmod (distance modulus)
+    df['Cluster'] = df.Cluster.apply(lambda x: x.strip())
+    df[['Cluster','Age[Myr]','D_est[pc]']].sort_values(by='Age[Myr]')
+    df = df.rename(columns={'Dist':'Dmod', 'e_Dist':'e_Dmod','E_Dist': 'E_Dmod',
+                            #'RA_ICRS': 'RA', 'DE_ICRS':'Dec'
+                            })
+    return df
+
 def get_open_clusters(loc='../data/TablesGaiaDR2HRDpaper/'):
     '''summary table of 32 open clusters'''
     fp = join(loc,'Table2_32 open clusters.csv')
     df_open = pd.read_csv(fp, delimiter=',', comment='#')
     df_open.Cluster = df_open.Cluster.apply(lambda x: x.replace('_',''))
+    df_open['D_est[pc]'] = Distance(distmod=df_open['DM']).pc
+    df_open['Age[Myr]'] = 10**df_open['log(age)']/1e6
     return df_open
 
 def get_NGC_clusters(loc='../data/TablesGaiaDR2HRDpaper/'):
@@ -3028,7 +3161,27 @@ def get_open_cluster_members_far_parallax(loc='../data/TablesGaiaDR2HRDpaper/', 
         print(f'Saved: {fp}')
     return df
 
-def combine_open_cluster_members_near_far(loc='../data/TablesGaiaDR2HRDpaper/', save_csv=False):
+def combine_open_clusters(loc='../data/', clobber=False, save_csv=False):
+    ''' Gaia DR2 open cluster + 269 clusters with ages'''
+    fp = join(loc,'merged_open_clusters.csv')
+    if not exists(fp) or clobber:
+        df1 = tql.get_269_open_clusterss(loc=loc)
+        df2 = tql.get_open_clusters()
+        df2 = df2.rename(columns={'RA':'RA_ICRS', 'Dec':'DE_ICRS'})
+        df2.Cluster = df2.Cluster.apply(lambda x: x.replace(' ',''))
+        df_all = pd.merge(left=df1[['Cluster','RA_ICRS','DE_ICRS','D_est[pc]','Age[Myr]']],
+                 right=df2[['Cluster','RA_ICRS','DE_ICRS','D_est[pc]','Age[Myr]']],
+                 on='Cluster', how='outer')
+        print('\n=====Edit columns=====\n')
+        if save_csv:
+            df_all.to_csv(fp)
+            print(f'Saved: {fp}')
+    else:
+        df_all = pd.read_csv(fp)
+    return df_all
+
+def combine_open_cluster_members_near_far(loc='../data/TablesGaiaDR2HRDpaper/',
+                                          save_csv=False):
     #make uniform column
     df_open_near_mem = get_open_cluster_members_near(loc)
     df_open_far_mem  = get_open_cluster_members_far(loc)
@@ -3041,7 +3194,8 @@ def combine_open_cluster_members_near_far(loc='../data/TablesGaiaDR2HRDpaper/', 
         print(f'Saved: {fp}')
     return df_open_mem_concat
 
-def combine_open_clusters_near_far(loc='../data/TablesGaiaDR2HRDpaper/', save_csv=False):
+def combine_open_clusters_near_far(loc='../data/TablesGaiaDR2HRDpaper/',
+                                   save_csv=False):
     #make uniform column
     df_open_near = get_open_clusters_near(loc)
     df_open_far  = get_open_clusters_far(loc)
@@ -3064,39 +3218,55 @@ def compute_separation_from_clusters(target_coord, sep_3d=True, verbose=False):
         target_coord = get_target_coord_3d(target_coord, verbose=verbose)
 
     try:
-        df = pd.read_csv('../data/TablesGaiaDR2HRDpaper/open_clusters.csv')
+        #merged Bossini+2019 & gaia DR2 paper
+        df = pd.read_csv('../data/merged_open_clusters.csv')
+        catalog = SkyCoord(ra=df['RA_ICRS'].values*u.deg,
+                      dec=df['DE_ICRS'].values*u.deg,
+                      distance=df['D_est[pc]'].values*u.pc,
+                      #radial_velocity=df['RV'].values*u.km/u.s,
+                      #pm_ra_cosdec=df['pmRA'].values*u.mas/u.yr,
+                      #pm_dec=df['pmDE'].values*u.mas/u.yr,
+                      frame='icrs'
+                      )
     except:
-        df = combine_open_clusters_near_far()
-
-    catalog = SkyCoord(ra=df['RA_ICRS'].values*u.deg,
-                  dec=df['DE_ICRS'].values*u.deg,
-                  distance=Distance(parallax=df['plx'].values*u.mas),
-                  #radial_velocity=df['RV'].values*u.km/u.s,
-                  #pm_ra_cosdec=df['pmRA'].values*u.mas/u.yr,
-                  #pm_dec=df['pmDE'].values*u.mas/u.yr,
-                  frame='icrs'
-                  )
+        #using gaia DR2 paper
+        df = pd.read_csv('../data/TablesGaiaDR2HRDpaper/open_clusters.csv')
+        # df = combine_open_clusters_near_far()
+        catalog = SkyCoord(ra=df['RA_ICRS'].values*u.deg,
+                      dec=df['DE_ICRS'].values*u.deg,
+                      distance=Distance(parallax=df['plx'].values*u.mas),
+                      #radial_velocity=df['RV'].values*u.km/u.s,
+                      #pm_ra_cosdec=df['pmRA'].values*u.mas/u.yr,
+                      #pm_dec=df['pmDE'].values*u.mas/u.yr,
+                      frame='icrs'
+                      )
     if sep_3d:
         return catalog.separation_3d(target_coord)
     else:
         raise NotImplementedError
 
-def get_cluster_near_target(target_coord, distance=20, unit=u.pc, sep_3d=True, verbose=False):
+def get_cluster_near_target(target_coord, distance=None, unit=u.pc, sep_3d=True,
+                            verbose=False):
     '''get nearest cluster to target within specified distance'''
     if target_coord.distance.value==1.0:
         target_coord = get_target_coord_3d(target_coord, verbose=verbose)
     #FIXME: include clusters not only open
     try:
-        df = pd.read_csv('../data/TablesGaiaDR2HRDpaper/open_clusters.csv')
+        df = pd.read_csv('../data/merged_open_clusters.csv')
     except:
-        df = combine_open_clusters_near_far()
+        df = pd.read_csv('../data/TablesGaiaDR2HRDpaper/open_clusters.csv')
+        # df = combine_open_clusters_near_far()
 
     catalog_sep = compute_separation_from_clusters(target_coord, sep_3d=sep_3d)
-    idx = catalog_sep < distance*unit
-    cluster= df['Cluster'].iloc[idx].values
+    if distance is not None:
+        idx = catalog_sep < distance*unit
+        cluster= df.Cluster.loc[idx].values
+    else:
+        idx = catalog_sep.argmin()
+        cluster= df.Cluster.iloc[idx]
     sep = catalog_sep[idx]
-    if verbose:
-        print('Nearest cluster to target: {} (d={:.2f})'.format(cluster[0], sep[0]))
+    # if verbose:
+    #     print('Nearest cluster to target: {} (d={:.2f})'.format(cluster[0], sep[0]))
     return (cluster, sep)
 
 def get_target_coord_3d(target_coord, verbose=False):
@@ -3114,7 +3284,8 @@ def get_target_coord_3d(target_coord, verbose=False):
     target_coord = SkyCoord(ra=target_coord.ra, dec=target_coord.dec, distance=target_dist)
     return target_coord
 
-def get_cluster_members_near_target(target_coord, distance=50, unit=u.pc, verbose=False):
+def get_cluster_members_near_target(target_coord, distance=50, unit=u.pc,
+                                    verbose=False):
     '''get cluster members to target within specified distance
     target_coord : target coordinates
     distance : target's 3d distance from nearest cluster
@@ -3234,7 +3405,7 @@ def compute_sigma(df_gaia, target_gaia_id,
 
 def get_toi_coord_3d(toi, clobber=False, verbose=False):
     all_tois = get_tois(clobber=clobber, verbose=verbose)
-    idx = all_tois['TOI']==toi
+    idx = all_tois['TOI'].isin([toi])
     columns = ['RA','Dec','Stellar Distance (pc)']
     ra, dec, dist = all_tois.loc[idx,columns].values[0]
     target_coord = SkyCoord(ra=ra, dec=dec, distance=dist,
@@ -3259,16 +3430,27 @@ def get_all_tois_gaia_params(dataloc='../data/', clobber=False, verbose=False):
             print(f'Loaded: {fp}')
     return toi_gaia
 
-def get_tois_near_cluster(distance=50*u.pc, clobber=False, verbose=False, remove_known_planets=False):
-    tois = get_tois(clobber=clobber, verbose=verbose, remove_known_planets=remove_known_planets)
+def get_tois_near_cluster(tois=None, distance=None, unit=u.pc, clobber=False,
+                          verbose=False, remove_known_planets=False):
+    '''
+
+    '''
+    if tois is None:
+        tois = get_tois(clobber=clobber, verbose=verbose,
+                        remove_known_planets=remove_known_planets)
 
     toi_list = {}
-    for toi in tqdm(tois[['TOI']].values):
+    for toi in tqdm(tois['TOI'].values):
         target_coord = get_toi_coord_3d(toi)
-        cluster, sep = get_cluster_near_target(target_coord,
-                            distance=distance.value, unit=distance.unit)
-        if len(np.concatenate([cluster,sep]))>1:
-            toi_list[toi] = (cluster,sep)
+        if distance is not None:
+            cluster, sep = get_cluster_near_target(target_coord,
+                            distance=distance, unit=unit)
+            if len(np.concatenate([cluster,sep]))>1:
+                toi_list[toi] = (cluster,sep)
+        else:
+            cluster, sep = get_cluster_near_target(target_coord)
+            if len(cluster)>0:
+                toi_list[toi] = (cluster,sep.pc)
         if verbose:
             print(toi,cluster,sep)
     df = pd.DataFrame(toi_list).T
@@ -3426,3 +3608,13 @@ def plot_cluster_membership(target_coord, cluster=None, target_gaia_id=None,
     else:
         pl.show()
     return None
+
+def distance_modulus(d):
+    '''
+    dmag = M-m
+    '''
+    dmag=5*np.log10(d)-5
+    return dmag
+
+def dmag2dist(dmag):
+    return 10**((dmag+5)/5)

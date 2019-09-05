@@ -14,10 +14,10 @@ user = getpass.getuser()
 #from astroplan import download_IERS_A
 
 try:
-    from tql.tql import generate_QL, generate_all_lc, generate_FOV, generate_multi_aperture_lc, collate_tls_results, query_toi, plot_target_in_cluster
+    from tql.tql import generate_QL, generate_all_lc, generate_FOV, generate_multi_aperture_lc, collate_tls_results, get_toi, plot_target_in_cluster
 except:
     sys.path.append('../tql/')
-    from tql import generate_QL, generate_all_lc, generate_FOV, generate_multi_aperture_lc, collate_tls_results, query_toi, plot_target_in_cluster
+    from tql import generate_QL, generate_all_lc, generate_FOV, generate_multi_aperture_lc, collate_tls_results, get_toi, plot_target_in_cluster
 
 APER_MASK_DESC=['pipeline: mask suggested by the official pipeline',
                 'round: circular aperture mask',
@@ -163,7 +163,7 @@ if __name__ == "__main__":
         else:
             #search by coordinates from tess alerts
             if np.any([toi,tic]):
-                q = query_toi(toi=toi, tic=None, clobber=clobber,
+                q = get_toi(toi=toi, tic=None, clobber=clobber,
                                 outdir='../data', verbose=False)
                 if len(q)>0:
                     ra, dec = q[['RA','Dec']].values[0]
@@ -173,7 +173,7 @@ if __name__ == "__main__":
                     #FIXME: how to get generic tic
                     raise ValueError('TIC/TOI not found!')
             else:
-                raise ValueError('Provide ra & dec or tic or toi or name')        
+                raise ValueError('Provide ra & dec or tic or toi or name')
 
         if cadence=='long':
             assert sap_mask!='pipeline', '--aper_mask=pipeline (default) is not available for FFI data. Try {round, square, threshold, percentile}.'
