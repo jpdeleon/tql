@@ -61,6 +61,8 @@ IMAGING_SURVEY = 'DSS2 Red'
 MAX_SECTORS    = 5           # number of sectors to analyze if target is osberved in multiple sectors
 MULTISEC_BIN   = 10*u.min    # binning for very dense data (observed >MAX_SECTORS)
 FONTSIZE       = 16
+PLOT_KWARGS_LC = {'linewidth': 3}
+PLOT_KWARGS_SC = {'linewidth': 1}
 LOG_FILENAME   = r'tql.log'
 YLIMIT       = (0.8,1.2)   # flux limits
 
@@ -100,6 +102,10 @@ def get_tpf(target_coord, tic=None, apphot_method='sap',
         figure output directory
     clobber : bool
         re-download files
+
+    Returns
+    -------
+    tpf and/or df: lk.targetpixelfile, pd.DataFrame
     '''
     # sector = None searches for all tpf; which sector to download is specified later
     if tic:
@@ -188,7 +194,7 @@ def get_ffi_cutout(target_coord=None, tic=None, sector=None, #cutout_size=10,
         raise ImportError('pip install eleanor')
 
     if tic:
-        ticstr = 'TIC {}'.format(tic)
+        ticstr = f'TIC {tic}'
         if verbose:
             print(f'\nSearching mast for {ticstr}\n')
         res = lk.search_tesscut(ticstr, sector=None)
@@ -704,6 +710,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         print texts
     '''
     start = time.time()
+    plot_kwargs = PLOT_KWARGS_LC if cadence=='long' else PLOT_KWARGS_SC
     try:
         #download or load tpf
         if cadence=='short':
@@ -750,7 +757,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
 
         # check if target is TOI from tess alerts
         q = get_toi(tic=ticid, toi=toi, clobber=clobber,
-                      outdir='../data', verbose=verbose)
+                      outdir='../data/', verbose=verbose)
 
         period, t0, t14, depth, toiid = get_transit_params(toi=toi,
                                                     tic=ticid, verbose=False)
@@ -1002,7 +1009,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
 
         #----------ax2: lc plot----------
         i=2
-        ax2 = raw_lc.errorbar(label='raw lc',ax=axs[i])
+        ax2 = raw_lc.errorbar(label='raw lc',ax=axs[i], **plot_kwargs)
         #some weird outliers do not get clipped, so force ylim
         y1,y2=axs[i].get_ylim()
         if (y1<YLIMIT[0]) & (y2>YLIMIT[1]):
@@ -1027,14 +1034,14 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         #plot trend in corrected light curve
         if use_pld or use_sff:
             #----------ax3: systematics-corrected----------
-            ax3 = corr_lc.errorbar(ax=axs[i], label='corr lc');
+            ax3 = corr_lc.errorbar(ax=axs[i], label='corr lc', **plot_kwargs);
             text = 'PLD={}, SFF={}, gp={}, cdpp={:.2f}'.format(use_pld,
                                         use_sff,use_gp,flat_lc.estimate_cdpp())
             trend.plot(color='r', linewidth=3, label='Savgol_filter',ax=axs[i])
             #axs[i].plot(t[cadence_mask_corr], f[cadence_mask_corr], '')
         else:
             #----------ax3: long-term variability-corrected----------
-            ax3 = flat_lc.errorbar(ax=axs[i],label='flat lc');
+            ax3 = flat_lc.errorbar(ax=axs[i],label='flat lc', **plot_kwargs);
             text = 'PLD={} (gp={}), SFF={}, cdpp={:.2f}'.format(use_pld,use_gp,
                                         use_sff,flat_lc.estimate_cdpp())
         #plot detected transits in panel 4:
@@ -1078,7 +1085,8 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         fold_lc.scatter(ax=axs[i], color='k', alpha=0.1, label='unbinned')
         #ax[i].scatter(results.folded_phase-phase_offset,results.folded_y,
         #              color='k', marker='.', label='unbinned', alpha=0.1, zorder=2)
-        fold_lc.bin(BINSIZE_SC).scatter(ax=axs[i], color='C1', label='binned (10-min)')
+        fold_lc.bin(BINSIZE_SC).scatter(ax=axs[i], color='C1',
+                                        label='binned (10-min)', **plot_kwargs)
         #lc folded at period multiples to check for EB
         flux_offset = (1-results.depth)*3
         axs[i].plot(fold_lc_2P.bin(BINSIZE_SC).time,
@@ -1117,7 +1125,7 @@ def generate_QL(target_coord,toi=None,tic=None,sector=None,#cutout_size=10,
         axs[i].text(0.6, 0.3, text2,
                 verticalalignment='top', horizontalalignment='left',
                 transform=axs[i].transAxes, color='g', fontsize=FONTSIZE)
-        axs[i].set_xlim(-0.2,0.2)
+        axs[i].set_xlim(-0.1,0.1)
         axs[i].legend(title='phase-folded lc')
         axs[i].legend(loc=3)
 
@@ -1230,6 +1238,7 @@ def generate_all_lc(target_coord,toi=None,tic=None,
     #     sys.exit('pip install git+https://github.com/bendichter/brokenaxes')
 
     start = time.time()
+    plot_kwargs = PLOT_KWARGS_LC if cadence=='long' else PLOT_KWARGS_SC
     try:
         if verbose:
             print(f'\nSearching mast for ra,dec=({target_coord.to_string()})\n')
@@ -1260,7 +1269,7 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             # check if target is TOI from TESS alerts
             ticid = int(df.iloc[0]['target_name'])
             q = get_toi(tic=ticid, toi=toi, clobber=clobber,
-                        outdir='../data', verbose=verbose)
+                        outdir='../data/', verbose=verbose)
 
             if len(df)>1:
                 #if tic is observed in multiple sectors
@@ -1618,7 +1627,7 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             for lc,col,sec in zip(lcs,COLORS,all_sectors):
                 cdpp = lc.flatten().estimate_cdpp()
                 ax2 = lc.errorbar(color=col,
-                      label='s{}: {:.2f}'.format(sec,cdpp), ax=ax[i])
+                      label='s{}: {:.2f}'.format(sec,cdpp), ax=ax[i], **plot_kwargs)
             #some weird outliers do not get clipped, so force ylim
             y1,y2=ax[i].get_ylim()
             if (y1<YLIMIT[0]) & (y2>YLIMIT[1]):
@@ -1641,16 +1650,16 @@ def generate_all_lc(target_coord,toi=None,tic=None,
                 #----------ax3: systematics-corrected----------
                 for corr_lc,col,sec in zip(corr_lcs,colors,all_sectors):
                     cdpp = corr_lc.flatten().estimate_cdpp()
-                    ax3 = corr_lc.errorbar(color=col,
-                            label='s{}: {:.2f}'.format(sec,cdpp), ax=ax[i])
+                    ax3 = corr_lc.errorbar(color=col, ax=ax[i],
+                            label='s{}: {:.2f}'.format(sec,cdpp), **plot_kwargs)
                 ax[i].legend(title='corr lc cdpp', loc='upper left')
-                ax[i].plot(t, tr, color='r', linewidth=3, label='Savgol_filter')
+                ax[i].plot(t, tr, color='r', label='Savgol_filter')
             else:
                 #ax1 long-term variability-corrected
                 for flat_lc,col,sec in zip(flat_lcs,colors,all_sectors):
                     cdpp = flat_lc.estimate_cdpp()
-                    ax3 = flat_lc.errorbar(color=col,
-                            label='s{}: {:.2f}'.format(sec,cdpp), ax=ax[i])
+                    ax3 = flat_lc.errorbar(color=col, ax=ax[i],
+                            label='s{}: {:.2f}'.format(sec,cdpp), **plot_kwargs)
                 ax[i].legend(title='flat lc cdpp', loc='upper left')
 
             if np.all([results.period,results.T0]):
@@ -1694,7 +1703,8 @@ def generate_all_lc(target_coord,toi=None,tic=None,
             ax[i].plot(results.model_folded_phase-phase_offset,
                        results.model_folded_model,
                        color='red', label='TLS model')
-            fold_lc.bin(BINSIZE_SC).scatter(ax=ax[i], color='C1', label='binned (10-min)')
+            fold_lc.bin(BINSIZE_SC).scatter(ax=ax[i], color='C1',
+                                        label='binned (10-min)', **plot_kwargs)
             fold_lc.scatter(ax=ax[i], color='k', alpha=0.1, label='unbinned')
 
             flux_offset = (1-results.depth)*3
@@ -1876,7 +1886,7 @@ def generate_FOV(target_coord,tic=None,toi=None,sector=None,
         else:
             ticid = df['target_name'].values[0]
         #query tess alerts/ toi release
-        q = get_toi(tic=ticid, toi=toi, clobber=clobber, outdir='../data', verbose=False)
+        q = get_toi(tic=ticid, toi=toi, clobber=clobber, outdir='../data/', verbose=False)
         period, t0, t14, depth, toiid = get_transit_params(toi=toi, tic=ticid, verbose=False)
 
         if verbose:
@@ -1958,8 +1968,8 @@ def generate_FOV(target_coord,tic=None,toi=None,sector=None,
         print_recommendations()
         logging.error(str(traceback.format_exc()))
 
-def get_tois(clobber=True, outdir='../data', verbose=False,
-             remove_FP=True, remove_known_planets=True):
+def get_tois(clobber=True, outdir='../data/', verbose=False,
+             remove_FP=True, remove_known_planets=False):
     """Download TOI list from TESS Alert/TOI Release.
 
     Parameters
@@ -1988,11 +1998,14 @@ def get_tois(clobber=True, outdir='../data', verbose=False,
             d = d[d['TFOPWG Disposition']!='FP']
             print('TOIs with TFPWG disposition==FP are removed.\n')
         if remove_known_planets:
-            # d = d['Comments'].str.contains('WASP')
-            d = d[~np.array(d['Comments'].str.contains('WASP').tolist(),dtype=bool)]
-            # d = d['Comments'].str.contains('HAT')
-            d = d[~np.array(d['Comments'].str.contains('HAT').tolist(),dtype=bool)]
-            print('WASP and HAT planets are removed.\n')
+            planet_keys = ['WASP','SWASP','HAT','HATS','KELT','QATAR','K2','Kepler']
+            keys = []
+            for key in planet_keys:
+                idx = ~np.array(d['Comments'].str.contains(key).tolist(),dtype=bool)
+                d = d[idx]
+                if idx.sum()>0:
+                    keys.append(key)
+            print(f'{keys} planets are removed.\n')
         d.to_csv(fp, index=False)
         print(f'Saved: {fp}\n')
     else:
@@ -2031,7 +2044,7 @@ def get_Rp_monte_carlo(RpRs, Rs, nsamples=10000, verbose=True):
         print(f'{med} -{med-lo} +{hi-med}')
     return (med,med-lo,hi-med)
 
-def get_toi(toi=None, tic=None, clobber=True, outdir='../data', verbose=True):
+def get_toi(toi=None, tic=None, clobber=True, outdir='../data/', verbose=True):
     """Query TOI from TOI list
 
     Parameters
@@ -2080,7 +2093,7 @@ def get_toi(toi=None, tic=None, clobber=True, outdir='../data', verbose=True):
 
     return q.sort_values(by='TOI', ascending=True)
 
-def get_transit_params(toi=None, tic=None, clobber=False, verbose=False, outdir='./data/'):
+def get_transit_params(toi=None, tic=None, clobber=False, verbose=False, outdir='../data/'):
     '''
     '''
 
@@ -2224,7 +2237,7 @@ def get_gaia_params_from_dr2(target_coord=None, toi=None, tic=None, gaia_id=None
     if not np.any([target_coord, tic, toi]):
         raise ValueError('Provide target_coord or toi or tic')
     if toi or tic:
-        q = get_toi(tic=tic, toi=toi, clobber=False, outdir='../data', verbose=False)
+        q = get_toi(tic=tic, toi=toi, clobber=False, outdir='../data/', verbose=False)
         target_coord = SkyCoord(ra=q['RA'], dec=q['Dec'], unit=(u.hourangle,u.deg))[0]
         Tmag = q['TESS Mag'].values[0]
     if gaia_sources is None:
@@ -2724,7 +2737,7 @@ def generate_multi_aperture_lc(target_coord,aper_radii=None,tic=None,toi=None,se
         else:
             ticid = df['target_name'].values[0]
 
-        q = get_toi(tic=ticid, toi=toi, clobber=clobber, outdir='../data', verbose=verbose)
+        q = get_toi(tic=ticid, toi=toi, clobber=clobber, outdir='../data/', verbose=verbose)
         period, t0, t14, depth, toiid = get_transit_params(toi=toi, tic=ticid, verbose=False)
 
         maskhdr = tpf.hdu[2].header
@@ -3034,6 +3047,53 @@ def isInside(border, target):
         return True
     return False
 
+def impact_parameter(a, inc, Rs):
+    '''
+    '''
+    return a/Rs*np.cos(inc)
+
+def tshape_approx(a, k, b):
+    """
+    Seager & Mallen-Ornelas 2003, eq. 15
+    """
+    i = np.arccos(b/a)
+    alpha = (1 - k)**2 - b**2
+    beta = (1 + k)**2 - b**2
+    return np.sqrt( alpha / beta )
+
+
+def max_k(tshape):
+    """
+    Seager & Mallen-Ornelas 2003, eq. 21
+    """
+    return (1 - tshape) / (1 + tshape)
+
+def apply_dmag(delta_prime, t12, t13):
+    '''
+    compute the maximumum delta mag to reproduce the observed depth
+
+    See Sec. 4 of Vanderburg+2019:
+    delta_prime < (t12/t13)^2 gamma
+    where the contamination factor
+    gamma = Fsource/Ftotal = 10^(-0.4*dmag)
+
+    Parameters
+    ----------
+    delta_prime : float
+        observed/apparent depth
+    t12 : float
+        time between first and second contact (ingress duration)
+    t13 : float
+        time between first and third contact (egress duration)
+
+    Returns
+    -------
+    dmag_max : float
+        maximum delta mag between host and contaminating source
+    '''
+    dmag_max = 2.5*np.log10(t12**2/(delta_prime*t13**2))
+    return dmag_max
+
 def print_recommendations():
     print('\n-----------Some recommendations-----------\n')
     print('Try -c if [buffer is too small for requested array] or to update TOI list')
@@ -3066,10 +3126,30 @@ def catch_IERS_warning():
             from astroplan import download_IERS_A
             download_IERS_A()
 
-def get_1805_open_clusters(loc='../data/'):
-    '''Dias+2014: https://ui.adsabs.harvard.edu/abs/2014yCat....102022D/abstract'''
-    fp = join(loc,'TablesDias2014/Table2_1805_open_clusters.tsv')
+def get_2167_open_clusters(loc='../data/TablesDias2014/'):
+    '''Dias+2004-2015; compiled until 2016:
+    https://ui.adsabs.harvard.edu/abs/2014yCat....102022D/abstract'''
+    fp = join(loc,'2167_open_clusters_and_candidates.tsv')
     df = pd.read_csv(fp, delimiter='\t',comment='#')
+    return df
+
+def get_1229_open_clusters(loc='../data/TablesCentatGaudin2018/'):
+    '''Centat-Gaudin+2018:
+    http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=J/A+A/618/A93'''
+    fp = join(loc,'Table1_1229_open_clusters.tsv')
+    df = pd.read_csv(fp, delimiter='\t',comment='#')
+    coords = SkyCoord(ra=df['RAJ2000'], dec=df['DEJ2000'], unit='deg')
+    df.Cluster = df.Cluster.apply(lambda x: x.strip())
+    df['RA'] = coords.ra.deg
+    df['Dec'] = coords.dec.deg
+    return df
+
+def get_1229_open_cluster_members(loc='../data/TablesCentatGaudin2018/'):
+    '''Centat-Gaudin+2018:
+    http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=J/A+A/618/A93'''
+    fp = join(loc,'Membership probabilities of all individual stars.tsv')
+    df = pd.read_csv(fp, delimiter='\t',comment='#')
+    df.Cluster = df.Cluster.apply(lambda x: x.strip())
     return df
 
 def get_269_open_clusters(loc='../data/'):
@@ -3217,29 +3297,37 @@ def compute_separation_from_clusters(target_coord, sep_3d=True, verbose=False):
     if target_coord.distance.value==1.0:
         target_coord = get_target_coord_3d(target_coord, verbose=verbose)
 
-    try:
-        #merged Bossini+2019 & gaia DR2 paper
-        df = pd.read_csv('../data/merged_open_clusters.csv')
-        catalog = SkyCoord(ra=df['RA_ICRS'].values*u.deg,
-                      dec=df['DE_ICRS'].values*u.deg,
-                      distance=df['D_est[pc]'].values*u.pc,
-                      #radial_velocity=df['RV'].values*u.km/u.s,
-                      #pm_ra_cosdec=df['pmRA'].values*u.mas/u.yr,
-                      #pm_dec=df['pmDE'].values*u.mas/u.yr,
-                      frame='icrs'
-                      )
-    except:
-        #using gaia DR2 paper
-        df = pd.read_csv('../data/TablesGaiaDR2HRDpaper/open_clusters.csv')
-        # df = combine_open_clusters_near_far()
-        catalog = SkyCoord(ra=df['RA_ICRS'].values*u.deg,
-                      dec=df['DE_ICRS'].values*u.deg,
-                      distance=Distance(parallax=df['plx'].values*u.mas),
-                      #radial_velocity=df['RV'].values*u.km/u.s,
-                      #pm_ra_cosdec=df['pmRA'].values*u.mas/u.yr,
-                      #pm_dec=df['pmDE'].values*u.mas/u.yr,
-                      frame='icrs'
-                      )
+    # try:
+    #     #merged Bossini+2019 & gaia DR2 paper
+    #     df = pd.read_csv('../data/merged_open_clusters.csv')
+    #     catalog = SkyCoord(ra=df['RA_ICRS'].values*u.deg,
+    #                   dec=df['DE_ICRS'].values*u.deg,
+    #                   distance=df['D_est[pc]'].values*u.pc,
+    #                   #radial_velocity=df['RV'].values*u.km/u.s,
+    #                   #pm_ra_cosdec=df['pmRA'].values*u.mas/u.yr,
+    #                   #pm_dec=df['pmDE'].values*u.mas/u.yr,
+    #                   frame='icrs'
+    #                   )
+    # except:
+    #     #using gaia DR2 paper
+    #     df = pd.read_csv('../data/TablesGaiaDR2HRDpaper/open_clusters.csv')
+    #     # df = combine_open_clusters_near_far()
+    #     catalog = SkyCoord(ra=df['RA_ICRS'].values*u.deg,
+    #                   dec=df['DE_ICRS'].values*u.deg,
+    #                   distance=Distance(parallax=df['plx'].values*u.mas),
+    #                   #radial_velocity=df['RV'].values*u.km/u.s,
+    #                   #pm_ra_cosdec=df['pmRA'].values*u.mas/u.yr,
+    #                   #pm_dec=df['pmDE'].values*u.mas/u.yr,
+    #                   frame='icrs'
+    #                   )
+    df = get_1229_open_clusters()
+    catalog = SkyCoord(ra=df['RA'].values*u.deg,
+                     dec=df['Dec'].values*u.deg,
+                     distance = Distance(parallax=df['plx'].values*u.mas),
+#                      pm_ra_cosdec=df0['pmRA'].values*u.mas/u.yr,
+#                      pm_dec=df0['pmDE'].values*u.mas/u.yr
+                         )
+
     if sep_3d:
         return catalog.separation_3d(target_coord)
     else:
@@ -3251,11 +3339,12 @@ def get_cluster_near_target(target_coord, distance=None, unit=u.pc, sep_3d=True,
     if target_coord.distance.value==1.0:
         target_coord = get_target_coord_3d(target_coord, verbose=verbose)
     #FIXME: include clusters not only open
-    try:
-        df = pd.read_csv('../data/merged_open_clusters.csv')
-    except:
-        df = pd.read_csv('../data/TablesGaiaDR2HRDpaper/open_clusters.csv')
-        # df = combine_open_clusters_near_far()
+    # try:
+    #     df = pd.read_csv('../data/merged_open_clusters.csv')
+    # except:
+    #     df = pd.read_csv('../data/TablesGaiaDR2HRDpaper/open_clusters.csv')
+    #     # df = combine_open_clusters_near_far()
+    df = get_1229_open_clusters()
 
     catalog_sep = compute_separation_from_clusters(target_coord, sep_3d=sep_3d)
     if distance is not None:
@@ -3298,10 +3387,11 @@ def get_cluster_members_near_target(target_coord, distance=50, unit=u.pc,
                                              unit=unit, verbose=verbose)
 
     if len(cluster)>0:
-        try:
-            mem = pd.read_csv('../data/TablesGaiaDR2HRDpaper/open_cluster_members.csv')
-        except:
-            mem = combine_open_cluster_members_near_far()
+        # try:
+        #     mem = pd.read_csv('../data/TablesGaiaDR2HRDpaper/open_cluster_members.csv')
+        # except:
+        #     mem = combine_open_cluster_members_near_far()
+        mem = get_1229_open_cluster_members()
         idx = mem.Cluster.isin(cluster)
         #mcoord = SkyCoord(ra=m.loc[idx].ra.values*u.deg,
         #                  dec=m.loc[idx].dec.values*u.deg,
@@ -3352,14 +3442,16 @@ def check_if_cluster_in_database(cluster, verbose=False):
     return cnames
 
 def get_cluster_members_gaia_params(cluster_name, df, clobber=False, verbose=True,
-                                    dataloc='../data/TablesGaiaDR2HRDpaper/'):
+                                    dataloc='../data/'):
     '''query gaia params for each cluster member'''
-    fp=join(dataloc,f'{cluster_name}_members.hdf5')
+    # fp=join(dataloc,f'TablesGaiaDR2HRDpaper/{cluster_name}_members.hdf5')
+    fp=join(dataloc,f'TablesCentatGaudin2018/{cluster_name}_members.hdf5')
     if not exists(fp) or clobber:
         gaia_data = {}
         for n in tqdm(df.index.tolist()):
             assert np.all(df.Cluster.isin([cluster_name]))
-            sid,ra,dec = df.loc[n,['SourceId','ra','dec']].values
+            # sid,ra,dec = df.loc[n,['SourceId','ra','dec']].values
+            sid,ra,dec = df.loc[n,['Source','RA_ICRS','DE_ICRS']].values
             coord = SkyCoord(ra=ra, dec=dec, unit=u.deg, frame='icrs')
             radius = u.Quantity(1, u.arcsec)
             g = Gaia.query_object(coordinate=coord, radius=radius)

@@ -164,7 +164,7 @@ if __name__ == "__main__":
             #search by coordinates from tess alerts
             if np.any([toi,tic]):
                 q = get_toi(toi=toi, tic=None, clobber=clobber,
-                                outdir='../data', verbose=False)
+                                outdir='../data/', verbose=False)
                 if len(q)>0:
                     ra, dec = q[['RA','Dec']].values[0]
                     tic = q['TIC ID'].values[0]
