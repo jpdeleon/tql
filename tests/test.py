@@ -8,18 +8,18 @@ from astropy.coordinates import SkyCoord
 import astropy.units as u
 
 if False:
-    df=tql.get_open_clusters()
+    df = tql.get_open_clusters()
     print(df)
 
 if False:
-    '''Each cluster in df1 is in df2'''
-    df1=tql.get_open_clusters_near()
-    df2=tql.get_open_cluster_members_near()
-    cnames = df1.Cluster.apply(lambda x: x.replace(' ', ''))
+    """Each cluster in df1 is in df2"""
+    df1 = tql.get_open_clusters_near()
+    df2 = tql.get_open_cluster_members_near()
+    cnames = df1.Cluster.apply(lambda x: x.replace(" ", ""))
     cnames.isin(df2.Cluster)
 
 if False:
-    '''
+    """
     check if NMemb in df1=get_open_clusters_near()
     is equal to the actual number of members in
     df2=get_open_cluster_members_near()
@@ -36,20 +36,20 @@ if False:
     Praesepe 938 946    <-- more members?
 
     More members than in summary table
-    '''
-    df1=tql.get_open_clusters_near()
-    df2=tql.get_open_cluster_members_near()
+    """
+    df1 = tql.get_open_clusters_near()
+    df2 = tql.get_open_cluster_members_near()
     # df1.Cluster = df1.Cluster.apply(lambda x: x.replace(' ', ''))
     cnames = df1.Cluster.values
-    g = df2.groupby(by='Cluster')
-    print('cname, df1, df2')
+    g = df2.groupby(by="Cluster")
+    print("cname, df1, df2")
     for c in cnames:
-        nmemb1 = df1.loc[df1.Cluster==c,'NMemb'].values[0]
+        nmemb1 = df1.loc[df1.Cluster == c, "NMemb"].values[0]
         nmemb2 = len(g.groups[c])
         print(c, nmemb1, nmemb2)
 
 if False:
-    '''
+    """
     check if NMemb in df1=get_open_clusters_far()
     is equal to the actual number of members in
     df2=get_open_cluster_members_far()
@@ -94,56 +94,66 @@ if False:
     NGC 7092 433 718    <-- more members?
 
     More members than in summary table
-    '''
-    df1=tql.get_open_clusters_far()
-    df2=tql.get_open_cluster_members_far()
+    """
+    df1 = tql.get_open_clusters_far()
+    df2 = tql.get_open_cluster_members_far()
     # df1.Cluster = df1.Cluster.apply(lambda x: x.replace(' ', ''))
     cnames = df1.Cluster.values
-    g = df2.groupby(by='Cluster')
-    print('cname, df1, df2')
+    g = df2.groupby(by="Cluster")
+    print("cname, df1, df2")
     for c in cnames:
-        nmemb1 = df1.loc[df1.Cluster==c,'NMemb'].values[0]
+        nmemb1 = df1.loc[df1.Cluster == c, "NMemb"].values[0]
         nmemb2 = len(g.groups[c])
         print(c, nmemb1, nmemb2)
 
 if False:
-    '''append mean values to open cluster members >250pc'''
+    """append mean values to open cluster members >250pc"""
     df_far_mem = tql.get_open_cluster_members_far()
-    df_far_mem['mean_plx'] = np.ones(len(df_far_mem))*np.nan
-    df_far_mem['mean_e_plx'] = np.ones(len(df_far_mem))*np.nan
-    df_far_mem['mean_pmRA'] = np.ones(len(df_far_mem))*np.nan
-    df_far_mem['mean_pmDE'] = np.ones(len(df_far_mem))*np.nan
-    df_far_mem['RV'] = np.ones(len(df_far_mem))*np.nan
+    df_far_mem["mean_plx"] = np.ones(len(df_far_mem)) * np.nan
+    df_far_mem["mean_e_plx"] = np.ones(len(df_far_mem)) * np.nan
+    df_far_mem["mean_pmRA"] = np.ones(len(df_far_mem)) * np.nan
+    df_far_mem["mean_pmDE"] = np.ones(len(df_far_mem)) * np.nan
+    df_far_mem["RV"] = np.ones(len(df_far_mem)) * np.nan
 
     for cname in df_far.Cluster.unique():
         try:
-            df_far_mem.loc[df_far_mem.Cluster==cname,'mean_plx'] = df_far.loc[df_far.Cluster==cname,'plx'].values[0]
-            df_far_mem.loc[df_far_mem.Cluster==cname,'mean_e_plx'] = df_far.loc[df_far.Cluster==cname,'e_plx'].values[0]
-            df_far_mem.loc[df_far_mem.Cluster==cname,'mean_pmRA'] = df_far.loc[df_far.Cluster==cname,'pmRA'].values[0]
-            df_far_mem.loc[df_far_mem.Cluster==cname,'mean_pmDE'] = df_far.loc[df_far.Cluster==cname,'pmDE'].values[0]
-            df_far_mem.loc[df_far_mem.Cluster==cname,'mean_RV'] = df_far.loc[df_far.Cluster==cname,'RV'].values[0]
+            df_far_mem.loc[
+                df_far_mem.Cluster == cname, "mean_plx"
+            ] = df_far.loc[df_far.Cluster == cname, "plx"].values[0]
+            df_far_mem.loc[
+                df_far_mem.Cluster == cname, "mean_e_plx"
+            ] = df_far.loc[df_far.Cluster == cname, "e_plx"].values[0]
+            df_far_mem.loc[
+                df_far_mem.Cluster == cname, "mean_pmRA"
+            ] = df_far.loc[df_far.Cluster == cname, "pmRA"].values[0]
+            df_far_mem.loc[
+                df_far_mem.Cluster == cname, "mean_pmDE"
+            ] = df_far.loc[df_far.Cluster == cname, "pmDE"].values[0]
+            df_far_mem.loc[
+                df_far_mem.Cluster == cname, "mean_RV"
+            ] = df_far.loc[df_far.Cluster == cname, "RV"].values[0]
         except Exception as e:
             print(e)
     print(df_far_mem)
 
 if False:
-    '''plot open clusters far'''
-    fig = pl.figure(figsize=(15,8))
+    """plot open clusters far"""
+    fig = pl.figure(figsize=(15, 8))
     df_far = tql.get_open_clusters_far()
     df_far_mem = tql.get_open_cluster_members_far()
     nclusters = len(df_far_mem.Cluster.unique())
     colors = cm.rainbow(np.linspace(0, 1, nclusters))
 
-    skip=10
+    skip = 10
     texts = []
     i = 0
-    for cname,df in df_far_mem.groupby(by='Cluster'):
-        idx = df_far.Cluster==cname
-        ra, dec = df_far.loc[idx,['RAJ2000','DEJ2000']].values[0]
+    for cname, df in df_far_mem.groupby(by="Cluster"):
+        idx = df_far.Cluster == cname
+        ra, dec = df_far.loc[idx, ["RAJ2000", "DEJ2000"]].values[0]
         texts.append(pl.text(ra, dec, cname))
-        for r,d in zip(df.ra.values[::skip], df.dec.values[::skip]):
-            pl.plot(r,d,'.',c=colors[i],alpha=0.3)
-        i+=1
+        for r, d in zip(df.ra.values[::skip], df.dec.values[::skip]):
+            pl.plot(r, d, ".", c=colors[i], alpha=0.3)
+        i += 1
     adjust_text(texts)
     pl.show()
 
@@ -154,11 +164,22 @@ if False:
     tql.plot_rv_density(target_gaia_id, df_gaia, ax=None, verbose=True)
 
 if False:
-    tql.plot_target_in_cluster(target_gaia_id, df_gaia, params=['ra','dec'],
-                                    show_centroid=True, ax=None, cluster_name=None,
-                                    verbose=True)
+    tql.plot_target_in_cluster(
+        target_gaia_id,
+        df_gaia,
+        params=["ra", "dec"],
+        show_centroid=True,
+        ax=None,
+        cluster_name=None,
+        verbose=True,
+    )
 if False:
-    target_gaia_id = 5251470948229949568 #toi837
-    plot_cluster_membership(target_gaia_id, cluster=None, #ax=None,
-                               min_cluster_diameter=100, verbose=False,
-                               figoutdir='.',savefig=False)
+    target_gaia_id = 5251470948229949568  # toi837
+    plot_cluster_membership(
+        target_gaia_id,
+        cluster=None,  # ax=None,
+        min_cluster_diameter=100,
+        verbose=False,
+        figoutdir=".",
+        savefig=False,
+    )
