@@ -60,6 +60,8 @@ parser.add_argument('-r', '--aper_radius',
 parser.add_argument('-perc', '--percentile',
     help='percentile to make aperture mask', type=float, default=None)
 parser.add_argument('-fov_only', help='plot FOV only', action='store_true', default=False)
+parser.add_argument('-no_reg', help='do not use regression/ no background subtraction (default=False)',
+    action='store_true', default=False)
 parser.add_argument('-pld', help='use Pixel-Level Decorrelation (PLD; default=False)',
     action='store_true', default=False)
 parser.add_argument('-no_gp', help='do not use GP in PLD modeling (default=False)',
@@ -105,6 +107,7 @@ aper_radii = args.aper_radii
 percentile = args.percentile
 percentiles = args.percentiles
 cadence = args.cadence
+use_regression  = not args.no_reg
 use_pld  = args.pld
 use_gp   = not args.no_gp
 use_sff  = args.sff
@@ -191,7 +194,7 @@ if __name__ == "__main__":
                         cadence=cadence,lc_type=lc_type,#cutout_size=cutout_size,
                         use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
                         apply_data_quality_mask=apply_data_quality_mask,
-                        sap_mask=sap_mask,
+                        sap_mask=sap_mask,use_regression=use_regression,
                         aper_radius=aper_radius,percentile=percentile,
                         clobber=clobber,fitsoutdir=fitsoutdir,figoutdir=figoutdir,
                         savefig=savefig,verbose=verbose)
@@ -207,7 +210,7 @@ if __name__ == "__main__":
             res = generate_all_lc(targ_coord,toi=toi,tic=tic,sectors=sectors,
                         apply_data_quality_mask=apply_data_quality_mask,
                         use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
-                        lc_type=lc_type,
+                        cadence=cadence,lc_type=lc_type,use_regression=use_regression,
                         aper_radius=aper_radius,percentile=percentile,
                         sap_mask=sap_mask,clobber=clobber,fitsoutdir=fitsoutdir,
                         figoutdir=figoutdir,savefig=savefig,verbose=verbose)
@@ -222,14 +225,14 @@ if __name__ == "__main__":
                         tic=tic,toi=toi,sector=sector,percentiles=percentiles,
                         use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
                         fitsoutdir=fitsoutdir,figoutdir=figoutdir,lc_type=lc_type,
-                        sap_mask=sap_mask,
+                        sap_mask=sap_mask,use_regression=use_regression,
                         savefig=savefig,clobber=clobber,verbose=verbose)
 
         else:
             res = generate_QL(targ_coord,toi=toi,tic=tic,sector=sector,
                         use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
                         apply_data_quality_mask=apply_data_quality_mask,
-                        sap_mask=sap_mask,
+                        sap_mask=sap_mask,use_regression=use_regression,
                         aper_radius=aper_radius,percentile=percentile,
                         clobber=clobber,fitsoutdir=fitsoutdir,figoutdir=figoutdir,
                         lc_type=lc_type,savefig=savefig,verbose=verbose)

@@ -937,10 +937,7 @@ def generate_QL(
         elif lc_type=='custom':
             # tpf to lc
             raw_lc = tpf.to_lightcurve(method=PHOTMETHOD, aperture_mask=mask)
-            idx1 = np.isnan(raw_lc.time)
-            idx2 = np.isnan(raw_lc.flux)
-            idx3 = np.isnan(raw_lc.flux_err)
-            idx = idx1 | idx2 | idx3
+            idx = np.isnan(raw_lc.time) | np.isnan(raw_lc.flux) | np.isnan(raw_lc.flux_err)
             raw_lc = raw_lc[~idx]
             #regression is only used in custom lightcurves that uses tpf
             if use_regression:
@@ -1576,14 +1573,16 @@ def generate_all_lc(
     target_coord,
     toi=None,
     tic=None,
+    use_regression=True,
     use_pld=False,
-    use_gp=True,
+    use_gp=False,
     use_sff=False,
     lc_type='custom',
     sap_mask="pipeline",
     aper_radius=None,
     percentile=None,
     sectors=None,
+    cadence='short',
     apply_data_quality_mask=True,
     fitsoutdir=".",
     figoutdir=".",
@@ -1629,6 +1628,22 @@ def generate_all_lc(
 
     start = time.time()
     plot_kwargs = PLOT_KWARGS_LC if cadence == "long" else PLOT_KWARGS_SC
+
+    if (tic is not None) and (toi is None):
+        tois = get_tois(clobber=True, verbose=False)
+        idx = tois["TIC ID"].isin([tic])
+        if sum(idx) > 0:
+            toi = tois.loc[idx, "TOI"].values[0]
+            if verbose:
+                print(f"TIC {tic} is TOI {int(toi)}!")
+
+    # check if target is TOI from tess alerts
+    if toi is not None:
+        q = get_toi(toi=toi, clobber=clobber, outdir="../data/", verbose=False)
+        period, t0, t14, depth, toiid = get_transit_params(toi=toi, tic=tic, verbose=False)
+    else:
+        period, t0, t14, depth, toiid = None, None, None, None, None
+
     try:
         if cadence == "short":
             tpf, df = get_tpf(
@@ -1679,15 +1694,6 @@ def generate_all_lc(
 
             # check if target is TOI from TESS alerts
             ticid = int(df.iloc[0]["target_name"])
-            try:
-                q = get_toi(
-                    toi=toi,
-                    clobber=clobber,
-                    outdir="../data/",
-                    verbose=verbose,
-                )
-            except Exception as e:
-                print(e)
             if len(df) > 1:
                 # if tic is observed in multiple sectors
                 if sectors is not None:
@@ -1712,14 +1718,6 @@ def generate_all_lc(
             if verbose:
                 logging.info(msg)
                 print(msg)
-
-            try:
-                period, t0, t14, depth, toiid = get_transit_params(
-                    toi=toi, tic=ticid, verbose=False
-                )
-            except Exception as e:
-                print(e)
-                period, t0, t14, depth, toiid = None, None, None, None, None
 
             tpfs = []
             masks = []
@@ -1956,8 +1954,30 @@ def generate_all_lc(
                 )
                 # make lc
                 raw_lc = tpf.to_lightcurve(
-                    method=PHOTMETHOD, aperture_mask=masks[j]
-                )
+                    method=PHOTMETHOD, aperture_mask=masks[j])
+                idx = np.isnan(raw_lc.time) | np.isnan(raw_lc.flux) | np.isnan(raw_lc.flux_err)
+                raw_lc = raw_lc[~idx]
+
+                if use_regression:
+                    msg = "Applying regression corrector to remove scattered light.\n"
+                    if verbose:
+                        logging.info(msg)
+                        print(msg)
+                    regressors = tpf.flux[~idx][:, ~mask]
+                    dm = (
+                        lk.DesignMatrix(regressors, name="regressors")
+                        .pca(nterms=5)
+                        .append_constant()
+                    )
+                    rc = lk.RegressionCorrector(raw_lc)
+                    corrected_lc = rc.correct(dm)
+
+                    # Optional: Remove the scattered light, allowing for the large offset from scattered light
+                    # if with_offset:
+                    #     corrected_lc = (
+                    #         raw_lc - rc.model_lc + np.percentile(rc.model_lc.flux, q=5)
+                    #     )
+                    corr_lc = corrected_lc.normalize()
                 raw_lc = raw_lc.remove_nans().remove_outliers().normalize()
 
                 # remove obvious outliers and NaN in time
@@ -2498,7 +2518,7 @@ def generate_all_lc(
         body = logfile.read()
     finally:
         logfile.close()
-    return res
+    return results
 
 
 def generate_FOV(
@@ -3675,6 +3695,7 @@ def generate_multi_aperture_lc(
     tic=None,
     toi=None,
     sector=None,
+    use_regression=True,
     use_pld=False,
     use_gp=False,
     use_sff=False,

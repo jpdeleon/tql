@@ -54,7 +54,7 @@ optional arguments:
   -col, --collate_only  collate all TLS results into table (add -s to save as .csv)
 ```
 
-![img](./plots/TIC183985250_TOI193.01_s2_sc.png)
+![img](./plots/TIC52368076_TOI125.01_s1_sc.png)
 
 
 ## Examples
