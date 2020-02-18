@@ -43,7 +43,7 @@ TESS_JD_offset = 2457000
 SG_FILTER_WINDOW_SC = 401  # short-cadence: 361x2min = 722min= 12 hr
 SG_FILTER_WINDOW_LC = 11  # long-cadence:  25x30min = 750min = 12.5 hr
 TESS_pix_scale = 21 * u.arcsec  # /pix
-FFI_CUTOUT_SIZE = 8  # pix
+FFI_CUTOUT_SIZE = 15  # pix
 PHOTMETHOD = "aperture"  # or 'prf'
 BINSIZE_SC = 5  # bin == 10 minutes
 # APPHOTMETHOD  =  'pipeline'  or 'all' or threshold --> uses tpf.extract_aperture_photometry
@@ -65,8 +65,8 @@ DEFAULT_U = [
 ]  # quadratic limb darkening for a G2V star in the Kepler bandpass
 IMAGING_SURVEY = "DSS2 Red"
 MAX_SECTORS = (
-    5
-)  # number of sectors to analyze if target is osberved in multiple sectors
+    5  # number of sectors to analyze if target is osberved in multiple sectors
+)
 MULTISEC_BIN = (
     10 * u.min
 )  # binning for very dense data (observed >MAX_SECTORS)
@@ -92,10 +92,10 @@ COLORS = [
 reload(logging)
 logging.basicConfig(filename=LOG_FILENAME, level=logging.DEBUG)
 
+
 def get_tpf(
     target_coord,
     tic=None,
-    apphot_method="sap",
     apply_data_quality_mask=True,
     sector=None,
     verbose=False,
@@ -119,8 +119,6 @@ def get_tpf(
         TOI id
     sector : int
         TESS sector
-    apphot_method : str
-        aperture photometry method
     sap_mask : str
         SAP mask type
     fitsoutdir : str
@@ -191,6 +189,12 @@ def get_tpf(
             if verbose:
                 print("Loading TIC {} from {}/...\n".format(ticid, fitsoutdir))
             tpf = lk.TessTargetPixelFile(filepath)
+
+        # remove zeros
+        zero_mask = (tpf.flux_err == 0).all(axis=(1, 2))
+        if zero_mask.sum() > 0:
+            tpf = tpf[~zero_mask]
+
         # assert tpf.mission == MISSION
         if apply_data_quality_mask:
             tpf = remove_bad_data(tpf, sector=tpf.sector)
@@ -256,8 +260,10 @@ def get_ffi_cutout(
         # ra, dec = target_coord.ra.deg, target_coord.dec.deg
         # star = el.Source(coords=(ra, dec), sector=sector)
         # ticid = int(star.tic)
-        stars = Catalogs.query_region(target_coord, radius=3*u.arcsec, catalog="TIC").to_pandas()
-        ticid = int(stars.loc[0,'ID'])
+        stars = Catalogs.query_region(
+            target_coord, radius=3 * u.arcsec, catalog="TIC"
+        ).to_pandas()
+        ticid = int(stars.loc[0, "ID"])
         ticstr = f"TIC {ticid}"
     df = res.table.to_pandas()
 
@@ -389,7 +395,7 @@ def ffi_cutout_to_lc(
         print(f"ndata={len(raw_lc.time)}\n")
     # correct systematics/ filter long-term variability
     # see https://github.com/KeplerGO/lightkurve/blob/master/lightkurve/correctors.py
-    if np.any([use_pld,use_sff]):
+    if np.any([use_pld, use_sff]):
         msg = "Applying systematics correction:\n"
         if use_pld:
             msg += "using PLD (gp={})".format(use_gp)
@@ -427,7 +433,9 @@ def ffi_cutout_to_lc(
                     aperture_mask=mask,
                     use_gp=use_gp,
                     # True means cadence is considered in the noise model
-                    cadence_mask=~cadence_mask_tpf if cadence_mask_tpf.sum()>0 else None,
+                    cadence_mask=~cadence_mask_tpf
+                    if cadence_mask_tpf.sum() > 0
+                    else None,
                     # True means the pixel is chosen when selecting the PLD basis vectors
                     pld_aperture_mask=mask,
                     # gp_timescale=30, n_pca_terms=10, pld_order=2,
@@ -471,9 +479,9 @@ def ffi_cutout_to_lc(
             cadence_mask_corr = None
 
         # finally flatten
-        t14_ncadences = t14*u.day.to(cadence_in_minutes)
-        errmsg = f'use sg_filter_window> {t14_ncadences}'
-        assert t14_ncadences<sg_filter_window_SC, errmsg
+        t14_ncadences = t14 * u.day.to(cadence_in_minutes)
+        errmsg = f"use sg_filter_window> {t14_ncadences}"
+        assert t14_ncadences < sg_filter_window_SC, errmsg
         flat_lc, trend = corr_lc.flatten(
             window_length=SG_FILTER_WINDOW_LC,
             mask=cadence_mask_corr,
@@ -502,12 +510,12 @@ def ffi_cutout_to_lc(
     flat_time_mask = ~np.isnan(flat_lc.time)
     flat_flux_mask = (flat_lc.flux > YLIMIT[0]) & (flat_lc.flux < YLIMIT[1])
     flat_lc = flat_lc[flat_time_mask & flat_flux_mask]
-    if np.any([use_pld,use_sff]):
+    if np.any([use_pld, use_sff]):
         trend = trend[flat_time_mask & flat_flux_mask]
     else:
         trend = trend[raw_time_mask & raw_flux_mask]
 
-    if np.any([use_pld,use_sff]):
+    if np.any([use_pld, use_sff]):
         if flatten:
             return (flat_lc, trend) if return_trend else flat_lc
         else:
@@ -760,10 +768,11 @@ def generate_QL(
     toi=None,
     tic=None,
     sector=None,  # cutout_size=10,
-    use_pld=True,
+    use_regression=True,
+    use_pld=False,
     use_gp=False,
     use_sff=False,
-    apphot_method="sap",
+    lc_type="custom",
     sap_mask="pipeline",
     aper_radius=None,
     percentile=None,
@@ -797,8 +806,6 @@ def generate_QL(
         TESS sector
     apply_data_quality_mask : bool
         apply data quality mask identified in data release notes
-    apphot_method : str
-        aperture photometry method
     sap_mask : str
         SAP mask type
     aper_radius : int
@@ -818,6 +825,22 @@ def generate_QL(
     """
     start = time.time()
     plot_kwargs = PLOT_KWARGS_LC if cadence == "long" else PLOT_KWARGS_SC
+
+    if (tic is not None) and (toi is None):
+        tois = get_tois(clobber=True, verbose=False)
+        idx = tois["TIC ID"].isin([tic])
+        if sum(idx) > 0:
+            toi = tois.loc[idx, "TOI"].values[0]
+            if verbose:
+                print(f"TIC {tic} is TOI {int(toi)}!")
+
+    # check if target is TOI from tess alerts
+    if toi is not None:
+        #toi_params = get_toi(toi=toi, clobber=clobber, outdir="../data/", verbose=False)
+        period, t0, t14, depth, toiid = get_transit_params(toi=toi, tic=tic, verbose=False)
+    else:
+        period, t0, t14, depth, toiid = None, None, None, None, None
+
     try:
         # download or load tpf
         if cadence == "short":
@@ -851,6 +874,7 @@ def generate_QL(
             assert (
                 sap_mask != "pipeline"
             ), "--aper_mask=pipeline (default) is not available for FFI data."
+
         all_sectors = [int(i) for i in df["sequence_number"].values]
         if sector is None:
             sector = all_sectors[0]
@@ -881,25 +905,6 @@ def generate_QL(
             logging.info(msg)
             print(msg)
 
-        # check if target is TOI from tess alerts
-        try:
-            q = get_toi(
-                tic=ticid,
-                toi=toi,
-                clobber=clobber,
-                outdir="../data/",
-                verbose=verbose,
-            )
-        except Exception as e:
-            print(e)
-        try:
-            period, t0, t14, depth, toiid = get_transit_params(
-                toi=toi, tic=ticid, verbose=False
-            )
-        except Exception as e:
-            print(e)
-            period, t0, t14, depth, toiid = None, None, None, None, None
-
         if verbose:
             print("Generating QL figure...\n")
 
@@ -911,10 +916,57 @@ def generate_QL(
             percentile=percentile,
             verbose=verbose,
         )
+        if (lc_type=='sap') | (lc_type=='pdcsap'):
+            if verbose:
+                print(f'Using {lc_type.upper()} lightcurves\n')
 
-        # make lc
-        raw_lc = tpf.to_lightcurve(method=PHOTMETHOD, aperture_mask=mask)
+            if ticid is not None:
+                q = lk.search_lightcurvefile(
+                    f"TIC {ticid}", sector=sector, mission=MISSION)
+            else:
+                q = lk.search_lightcurvefile(
+                    target_coord, sector=sector, mission=MISSION)
+            if isinstance(sector, str) and sector == "all":
+                lcf = q.download_all(quality_bitmask=quality_bitmask)
+            else:
+                lcf = q.download(quality_bitmask=quality_bitmask)
+            if lc_type == "pdcsap":
+                raw_lc = lcf.PDCSAP_FLUX.remove_nans().normalize()
+            else:
+                raw_lc = lcf.SAP_FLUX.remove_nans().normalize()
+        elif lc_type=='custom':
+            # tpf to lc
+            raw_lc = tpf.to_lightcurve(method=PHOTMETHOD, aperture_mask=mask)
+            idx1 = np.isnan(raw_lc.time)
+            idx2 = np.isnan(raw_lc.flux)
+            idx3 = np.isnan(raw_lc.flux_err)
+            idx = idx1 | idx2 | idx3
+            raw_lc = raw_lc[~idx]
+            #regression is only used in custom lightcurves that uses tpf
+            if use_regression:
+                msg = "Applying regression corrector to remove scattered light.\n"
+                if verbose:
+                    logging.info(msg)
+                    print(msg)
+                regressors = tpf.flux[~idx][:, ~mask]
+                dm = (
+                    lk.DesignMatrix(regressors, name="regressors")
+                    .pca(nterms=5)
+                    .append_constant()
+                )
+                rc = lk.RegressionCorrector(raw_lc)
+                corrected_lc = rc.correct(dm)
+
+                # Optional: Remove the scattered light, allowing for the large offset from scattered light
+                # if with_offset:
+                #     corrected_lc = (
+                #         raw_lc - rc.model_lc + np.percentile(rc.model_lc.flux, q=5)
+                #     )
+                corr_lc = corrected_lc.normalize()
+        else:
+            raise ValueError('use lc_type: sap, pdcsap, custom')
         raw_lc = raw_lc.remove_nans().remove_outliers().normalize()
+
         if verbose:
             print("ndata={}\n".format(len(raw_lc.time)))
         # correct systematics/ filter long-term variability
@@ -922,7 +974,7 @@ def generate_QL(
         cadence_mask_tpf = make_cadence_mask(
             tpf.time, period, t0, t14, verbose=verbose
         )
-        if np.any([use_pld,use_sff]):
+        if np.any([use_pld, use_sff]):
             msg = "Applying systematics correction:\n"
             if use_pld:
                 msg += "using PLD (gp={})\n".format(use_gp)
@@ -958,7 +1010,9 @@ def generate_QL(
                         aperture_mask=mask,
                         use_gp=use_gp,
                         # True means cadence is considered in the noise model
-                        cadence_mask=~cadence_mask_tpf if cadence_mask_tpf.sum()>0 else None,
+                        cadence_mask=~cadence_mask_tpf
+                        if cadence_mask_tpf.sum() > 0
+                        else None,
                         # True means the pixel is chosen when selecting the PLD basis vectors
                         pld_aperture_mask=mask,
                         # gp_timescale=30, n_pca_terms=10, pld_order=2,
@@ -1001,20 +1055,14 @@ def generate_QL(
                 corr_lc.time, period, t0, t14, verbose=False
             )
             # finally flatten
-            t14_ncadences = t14*u.day.to(cadence_in_minutes)
-            errmsg = f'use sg_filter_window> {t14_ncadences}'
-            assert t14_ncadences<sg_filter_window, errmsg
+            t14_ncadences = t14 * u.day.to(cadence_in_minutes)
+            errmsg = f"use sg_filter_window> {t14_ncadences}"
+            assert t14_ncadences < sg_filter_window, errmsg
             flat_lc, trend = corr_lc.flatten(
                 window_length=sg_filter_window,
                 mask=cadence_mask_corr,
                 return_trend=True,
             )
-        # elif apphot_method=='pdcsap':
-        #    flat_lc = res2.get_lightcurve(flux_type='PDCSAP_FLUX').remove_nans().remove_outliers()
-        #    if verbose:
-        #        msg='Using PDCSAP light curve\n'
-        #        print(msg)
-        #        logging.info(msg)
 
         else:
             if verbose:
@@ -1030,19 +1078,19 @@ def generate_QL(
                 return_trend=True,
             )
         # remove obvious outliers and NaN in time
-        raw_time_mask = ~np.isnan(raw_lc.time)
-        raw_flux_mask = (raw_lc.flux > YLIMIT[0]) & (raw_lc.flux < YLIMIT[1])
-        raw_lc = raw_lc[raw_time_mask & raw_flux_mask]
-        flat_time_mask = ~np.isnan(flat_lc.time)
-        flat_flux_mask = (flat_lc.flux > YLIMIT[0]) & (
-            flat_lc.flux < YLIMIT[1]
-        )
-        flat_lc = flat_lc[flat_time_mask & flat_flux_mask]
-        # if apphot_method!='pdcsap':
-        if np.any([use_pld,use_sff]):
-            trend = trend[flat_time_mask & flat_flux_mask]
-        else:
-            trend = trend[raw_time_mask & raw_flux_mask]
+        # raw_time_mask = ~np.isnan(raw_lc.time)
+        # raw_flux_mask = (raw_lc.flux > YLIMIT[0]) & (raw_lc.flux < YLIMIT[1])
+        # raw_lc = raw_lc[raw_time_mask & raw_flux_mask]
+        # flat_time_mask = ~np.isnan(flat_lc.time)
+        # flat_flux_mask = (flat_lc.flux > YLIMIT[0]) & (
+        #     flat_lc.flux < YLIMIT[1]
+        # )
+        # flat_lc = flat_lc[flat_time_mask & flat_flux_mask]
+        # # if apphot_method!='pdcsap':
+        # if np.any([use_pld, use_sff]):
+        #     trend = trend[flat_time_mask & flat_flux_mask]
+        # else:
+        #     trend = trend[raw_time_mask & raw_flux_mask]
 
         # periodogram; see also https://docs.lightkurve.org/tutorials/02-recover-a-planet.html
         # pg = corr_lc.to_periodogram(minimum_period=min_period,
@@ -1065,9 +1113,16 @@ def generate_QL(
             ((u1, u2), Ms_tic, _, _, Rs_tic, _, _) = catalog.catalog_info(
                 TIC_ID=int(ticid)
             )
-            Teff_tic, logg_tic, _, Rs_min_tic, Rs_max_tic, _, _, _ = catalog.catalog_info_TIC(
-                int(ticid)
-            )
+            (
+                Teff_tic,
+                logg_tic,
+                _,
+                Rs_min_tic,
+                Rs_max_tic,
+                _,
+                _,
+                _,
+            ) = catalog.catalog_info_TIC(int(ticid))
             Rs_err_tic = np.sqrt(Rs_min_tic ** 2 + Rs_max_tic ** 2)
             u1, u2 = DEFAULT_U if not np.all([u1, u2]) else [u1, u2]
             Rs_tic = 1.0 if Rs_tic is None else Rs_tic
@@ -1120,7 +1175,6 @@ def generate_QL(
         fold_lc_halfP = flat_lc.fold(
             period=results.period * 0.5, t0=results.T0
         )
-
         maskhdr = tpf.hdu[2].header
         tpfwcs = WCS(maskhdr)
         # ------------------------create figure-----------------------#
@@ -1265,7 +1319,7 @@ def generate_QL(
 
         # ----------ax2: lc plot----------
         i = 2
-        ax2 = raw_lc.errorbar(label="raw lc", ax=axs[i], **plot_kwargs)
+        ax2 = raw_lc.errorbar(label=f"raw lc ({lc_type})", ax=axs[i], **plot_kwargs)
         # some weird outliers do not get clipped, so force ylim
         y1, y2 = ax2.get_ylim()
         if (y1 < YLIMIT[0]) & (y2 > YLIMIT[1]):
@@ -1277,7 +1331,7 @@ def generate_QL(
 
         # plot trend in raw flux if no correction is applied in sap flux
         # no trend plot if pdcsap or pld or sff is used
-        if (use_pld == use_sff == False) & (apphot_method == "sap"):
+        if (use_pld == use_sff == False): # & (apphot_method == "custom"):
             trend.plot(
                 color="r", linewidth=3, label="Savgol_filter", ax=axs[i]
             )
@@ -1297,11 +1351,11 @@ def generate_QL(
         # ----------ax3: long-term variability (+ systematics) correction----------
         i = 3
         # plot trend in corrected light curve
-        if np.any([use_pld,use_sff]):
+        if np.any([use_pld, use_sff]):
             # ----------ax3: systematics-corrected----------
             ax3 = corr_lc.errorbar(ax=axs[i], label="corr lc", **plot_kwargs)
-            text = "PLD={}, SFF={}, gp={}, cdpp={:.2f}".format(
-                use_pld, use_sff, use_gp, flat_lc.estimate_cdpp()
+            text = "PLD={}, SFF={}, Reg={}, cdpp={:.2f}".format(
+                use_pld, use_sff, use_regression, flat_lc.estimate_cdpp()
             )
             trend.plot(
                 color="r", linewidth=3, label="Savgol_filter", ax=axs[i]
@@ -1310,8 +1364,8 @@ def generate_QL(
         else:
             # ----------ax3: long-term variability-corrected----------
             ax3 = flat_lc.errorbar(ax=axs[i], label="flat lc", **plot_kwargs)
-            text = "PLD={} (gp={}), SFF={}, cdpp={:.2f}".format(
-                use_pld, use_gp, use_sff, flat_lc.estimate_cdpp()
+            text = "PLD={}, SFF={}, Reg={}, cdpp={:.2f}".format(
+                use_pld, use_sff, use_regression, flat_lc.estimate_cdpp()
             )
         # plot detected transits in panel 4:
         if np.all([results.period, results.T0]):
@@ -1525,7 +1579,7 @@ def generate_all_lc(
     use_pld=False,
     use_gp=True,
     use_sff=False,
-    apphot_method="sap",
+    lc_type='custom',
     sap_mask="pipeline",
     aper_radius=None,
     percentile=None,
@@ -1555,8 +1609,6 @@ def generate_all_lc(
         TESS sectors
     apply_data_quality_mask : bool
 
-    apphot_method : str
-        aperture photometry method
     sap_mask : str
         SAP mask type
     aper_radius : int
@@ -1629,7 +1681,6 @@ def generate_all_lc(
             ticid = int(df.iloc[0]["target_name"])
             try:
                 q = get_toi(
-                    tic=ticid,
                     toi=toi,
                     clobber=clobber,
                     outdir="../data/",
@@ -1790,7 +1841,12 @@ def generate_all_lc(
                     tpf.flux[cadence_mask_tpf], axis=0
                 )
                 flux_outtransit = np.nanmedian(
-                    tpf.flux[~cadence_mask_tpf if cadence_mask_tpf.sum()>0 else None], axis=0
+                    tpf.flux[
+                        ~cadence_mask_tpf
+                        if cadence_mask_tpf.sum() > 0
+                        else None
+                    ],
+                    axis=0,
                 )
 
                 # centroid based on TIC coordinates (identical to Gaia coordinates)
@@ -1919,7 +1975,7 @@ def generate_all_lc(
                 )
 
                 # correct systematics/ filter long-term variability
-                if np.any([use_pld,use_sff]):
+                if np.any([use_pld, use_sff]):
                     msg = "Applying systematics correction:\n"
                     if use_pld:
                         msg += f"using PLD (gp={use_gp})"
@@ -1933,7 +1989,9 @@ def generate_all_lc(
                                 aperture_mask=mask,
                                 use_gp=use_gp,
                                 # True means cadence is considered in the noise model
-                                cadence_mask=~cadence_mask_tpf if cadence_mask_tpf.sum()>0 else None,
+                                cadence_mask=~cadence_mask_tpf
+                                if cadence_mask_tpf.sum() > 0
+                                else None,
                                 # True means the pixel is chosen when selecting the PLD basis vectors
                                 pld_aperture_mask=mask,
                                 # gp_timescale=30, n_pca_terms=10, pld_order=2,
@@ -1975,9 +2033,9 @@ def generate_all_lc(
                         corr_lc.time, period, t0, t14, verbose=False
                     )
                     # finally flatten
-                    t14_ncadences = t14*u.day.to(cadence_in_minutes)
-                    errmsg = f'use sg_filter_window> {t14_ncadences}'
-                    assert t14_ncadences<sg_filter_window_SC, errmsg
+                    t14_ncadences = t14 * u.day.to(cadence_in_minutes)
+                    errmsg = f"use sg_filter_window> {t14_ncadences}"
+                    assert t14_ncadences < sg_filter_window_SC, errmsg
                     flat_lc, trend = corr_lc.flatten(
                         window_length=SG_FILTER_WINDOW_SC,
                         mask=cadence_mask_corr,
@@ -1996,7 +2054,6 @@ def generate_all_lc(
                         mask=cadence_mask_raw,
                         return_trend=True,
                     )
-                import pdb; pdb.set_trace()
                 # remove obvious outliers and NaN in time
                 raw_time_mask = ~np.isnan(raw_lc.time)
                 raw_flux_mask = (raw_lc.flux > YLIMIT[0]) | (
@@ -2008,8 +2065,7 @@ def generate_all_lc(
                     flat_lc.flux < YLIMIT[1]
                 )
                 flat_lc = flat_lc[flat_time_mask & flat_flux_mask]
-                # if apphot_method!='pdcsap':
-                if np.any([use_pld,use_sff]):
+                if np.any([use_pld, use_sff]):
                     trend = trend[flat_time_mask & flat_flux_mask]
                 else:
                     trend = trend[raw_time_mask & raw_flux_mask]
@@ -2066,9 +2122,16 @@ def generate_all_lc(
                 ((u1, u2), Ms_tic, _, _, Rs_tic, _, _) = catalog.catalog_info(
                     TIC_ID=int(ticid)
                 )
-                Teff_tic, logg_tic, _, _, _, _, _, _ = catalog.catalog_info_TIC(
-                    int(ticid)
-                )
+                (
+                    Teff_tic,
+                    logg_tic,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                ) = catalog.catalog_info_TIC(int(ticid))
                 u1, u2 = DEFAULT_U if not np.all([u1, u2]) else [u1, u2]
                 Rs_tic = 1.0 if Rs_tic is None else Rs_tic
                 Ms_tic = 1.0 if Ms_tic is None else Ms_tic
@@ -2157,7 +2220,7 @@ def generate_all_lc(
             # ----------ax3: long-term variability (+ systematics) correction----------
             i = 3
             colors = COLORS[: len(all_sectors)]
-            if np.any([use_pld,use_sff]):
+            if np.any([use_pld, use_sff]):
                 # ----------ax3: systematics-corrected----------
                 for corr_lc, col, sec in zip(corr_lcs, colors, all_sectors):
                     cdpp = corr_lc.flatten().estimate_cdpp()
@@ -2191,7 +2254,14 @@ def generate_all_lc(
                         )
                 except:
                     pass
-            text = f"PLD={use_pld} (gp={use_gp}), SFF={use_sff}"
+            if use_pld:
+                text = f"PLD=True (gp={use_gp})"
+            elif use_sff:
+                text = "SFF=True"
+            elif use_regression:
+                text = "Reg=True"
+            else:
+                pass
             ax[i].text(
                 0.95,
                 0.15,
@@ -2436,7 +2506,7 @@ def generate_FOV(
     tic=None,
     toi=None,
     sector=None,
-    apphot_method="sap",
+    lc_type='custom',
     sap_mask="pipeline",
     aper_radius=None,
     percentile=None,
@@ -2459,8 +2529,6 @@ def generate_FOV(
         TOI id
     sector : int
         TESS sector
-    apphot_method : str
-        aperture photometry method
     sap_mask : str
         SAP mask type
     aper_radius : int
@@ -2477,7 +2545,6 @@ def generate_FOV(
         tpf, df = get_tpf(
             target_coord,
             tic=tic,
-            apphot_method="sap",
             sector=sector,
             verbose=verbose,
             clobber=clobber,
@@ -2515,7 +2582,6 @@ def generate_FOV(
         # query tess alerts/ toi release
         try:
             q = get_toi(
-                tic=ticid,
                 toi=toi,
                 clobber=clobber,
                 outdir="../data/",
@@ -2728,13 +2794,11 @@ def get_tois(
     return d.sort_values("TOI")
 
 
-def get_toi(toi=None, tic=None, clobber=True, outdir="../data/", verbose=True):
+def get_toi(toi=None, clobber=True, outdir="../data/", verbose=True):
     """Query TOI from TOI list
 
     Parameters
     ----------
-    tic : int
-        TIC id
     toi : float
         TOI id
     clobber : bool
@@ -2749,42 +2813,34 @@ def get_toi(toi=None, tic=None, clobber=True, outdir="../data/", verbose=True):
     q : pandas.DataFrame
         TOI match else None
     """
-    if (toi is None) and (tic is None):
-        raise ValueError('Provide toi or tic')
+
+    df = get_tois(clobber=clobber, verbose=verbose, outdir=outdir)
+
+    if isinstance(toi, int):
+        toi = float(str(toi) + ".01")
     else:
-        df = get_tois(clobber=clobber, verbose=verbose, outdir=outdir)
+        planet = str(toi).split(".")[1]
+        assert len(planet) == 2, "use pattern: TOI.01"
+    idx = df["TOI"].isin([toi])
+    q = df.loc[idx]
+    assert len(q) > 0, "TOI not found!"
 
-        if toi is not None:
-            if isinstance(toi, int):
-                toi = float(str(toi) + ".01")
-            else:
-                planet = str(toi).split(".")[1]
-                assert len(planet) == 2, "use pattern: TOI.01"
-            idx = df["TOI"].isin([toi])
-        elif tic is not None:
-            idx = df["TIC ID"].isin([tic])
+    q.index = q["TOI"].values
+    if verbose:
+        print("Data from TOI Release:\n")
+        columns = [
+            "Period (days)",
+            "Epoch (BJD)",
+            "Duration (hours)",
+            "Depth (ppm)",
+            "Comments",
+        ]
+        print(f"{q[columns].T}\n")
 
-        q = df.loc[idx]
-        # return if empty, else continue
-        if len(q) == 0:
-            raise ValueError("TOI not found!")
+    if q["TFOPWG Disposition"].isin(["FP"]).any():
+        print("\nTFOPWG disposition is a False Positive!\n")
 
-        q.index = q["TOI"].values
-        if verbose:
-            print("Data from TOI Release:\n")
-            columns = [
-                "Period (days)",
-                "Epoch (BJD)",
-                "Duration (hours)",
-                "Depth (ppm)",
-                "Comments",
-            ]
-            print(f"{q[columns].T}\n")
-
-        if q["TFOPWG Disposition"].isin(["FP"]).any():
-            print("\nTFOPWG disposition is a False Positive!\n")
-
-        return q.sort_values(by="TOI", ascending=True)
+    return q.sort_values(by="TOI", ascending=True)
 
 
 def get_Rp_monte_carlo(RpRs, Rs, nsamples=10000, verbose=True):
@@ -2824,10 +2880,10 @@ def get_transit_params(
     """
     if (toi is not None) or (tic is not None):
         q = get_toi(
-            toi=toi, tic=tic, clobber=clobber, verbose=verbose, outdir=outdir
+            toi=toi, clobber=clobber, verbose=verbose, outdir=outdir
         )
     else:
-        raise ValueError('Provide toi or tic')
+        raise ValueError("Provide toi or tic")
 
     if len(q) > 0:
         if toi is not None:
@@ -2876,8 +2932,7 @@ def get_transit_params(
                 print(msg)
         return (period, t0, t14, depth, toiid)
     else:
-        raise ValueError('empty query')
-
+        raise ValueError("empty query")
 
 
 def make_cadence_mask(time, period, t0, t14=0.5, padding=0.5, verbose=False):
@@ -3046,8 +3101,10 @@ def plot_gaia_sources(
         )
     if verbose:
         bad = gaia_sources.loc[gaia_sources.source_id.astype(int).isin(NEBs)]
-        bad['distance']=bad['distance'].apply(lambda x: x*u.arcmin.to(u.arcsec))
-        print(bad[['source_id','distance','parallax','phot_g_mean_mag']])
+        bad["distance"] = bad["distance"].apply(
+            lambda x: x * u.arcmin.to(u.arcsec)
+        )
+        print(bad[["source_id", "distance", "parallax", "phot_g_mean_mag"]])
     # set img limits
     pl.setp(
         nax,
@@ -3083,8 +3140,7 @@ def get_gaia_params_from_dr2(
     if (target_coord is None) and (toi is None) and (tic is None):
         raise ValueError("Provide target_coord or toi or tic")
     try:
-        q = get_toi(
-            tic=tic, toi=toi, clobber=False, outdir="../data/", verbose=False
+        q = get_toi(toi=toi, clobber=False, outdir="../data/", verbose=False
         )
         target_coord = SkyCoord(
             ra=q["RA"], dec=q["Dec"], unit=(u.hourangle, u.deg)
@@ -3592,7 +3648,10 @@ def plot_centroid_shift(tpf, cadence_mask_tpf, ax=None):
     flux value and the mean in-transit shows the location of the signal.
     """
     flux_intransit = np.nanmean(tpf.flux[cadence_mask_tpf], axis=0)
-    flux_outtransit = np.nanmean(tpf.flux[~cadence_mask_tpf if cadence_mask_tpf.sum()>0 else None], axis=0)
+    flux_outtransit = np.nanmean(
+        tpf.flux[~cadence_mask_tpf if cadence_mask_tpf.sum() > 0 else None],
+        axis=0,
+    )
 
     # centroid based on TIC coordinates
     y, x = tpf.wcs.all_world2pix(np.c_[tpf.ra, tpf.dec], 1)[0]
@@ -3619,8 +3678,8 @@ def generate_multi_aperture_lc(
     use_pld=False,
     use_gp=False,
     use_sff=False,
+    lc_type='custom',
     percentiles=None,
-    apphot_method="sap",
     sap_mask="pipeline",
     apply_data_quality_mask=True,
     fitsoutdir=".",
@@ -3651,8 +3710,6 @@ def generate_multi_aperture_lc(
         TESS sector
     apply_data_quality_mask : bool
         apply quality mask identified in TESS Notes
-    apphot_method : str
-        aperture photometry method
     sap_mask : str
         SAP mask type
     fitsoutdir : str
@@ -3669,7 +3726,6 @@ def generate_multi_aperture_lc(
         tpf, df = get_tpf(
             target_coord,
             tic=tic,
-            apphot_method=apphot_method,
             sap_mask=sap_mask,
             apply_data_quality_mask=apply_data_quality_mask,
             sector=sector,
@@ -3700,7 +3756,6 @@ def generate_multi_aperture_lc(
 
         try:
             q = get_toi(
-                tic=ticid,
                 toi=toi,
                 clobber=clobber,
                 outdir="../data/",
@@ -3844,7 +3899,7 @@ def generate_multi_aperture_lc(
             cadence_mask_tpf = make_cadence_mask(
                 tpf.time, period, t0, t14, verbose=verbose
             )
-            if np.any([use_pld,use_sff]):
+            if np.any([use_pld, use_sff]):
                 msg = "Applying systematics correction:\n".format(use_gp)
                 if use_pld is not None:
                     msg += "using PLD (gp={})".format(use_gp)
@@ -3899,9 +3954,9 @@ def generate_multi_aperture_lc(
                     corr_lc.time, period, t0, t14, verbose=False
                 )
                 # finally flatten
-                t14_ncadences = t14*u.day.to(cadence_in_minutes)
-                errmsg = f'use sg_filter_window> {t14_ncadences}'
-                assert t14_ncadences<sg_filter_window_SC, errmsg
+                t14_ncadences = t14 * u.day.to(cadence_in_minutes)
+                errmsg = f"use sg_filter_window> {t14_ncadences}"
+                assert t14_ncadences < sg_filter_window_SC, errmsg
                 flat_lc, trend = corr_lc.flatten(
                     window_length=SG_FILTER_WINDOW_SC,
                     mask=cadence_mask_corr,
@@ -3933,7 +3988,7 @@ def generate_multi_aperture_lc(
             )
             flat_lc = flat_lc[flat_time_mask & flat_flux_mask]
 
-            if np.any([use_pld,use_sff]):
+            if np.any([use_pld, use_sff]):
                 trend = trend[flat_time_mask & flat_flux_mask]
             else:
                 trend = trend[raw_time_mask & raw_flux_mask]
@@ -3954,9 +4009,16 @@ def generate_multi_aperture_lc(
                 ((u1, u2), Ms_tic, _, _, Rs_tic, _, _) = catalog.catalog_info(
                     TIC_ID=int(ticid)
                 )
-                Teff_tic, logg_tic, _, _, _, _, _, _ = catalog.catalog_info_TIC(
-                    int(ticid)
-                )
+                (
+                    Teff_tic,
+                    logg_tic,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                    _,
+                ) = catalog.catalog_info_TIC(int(ticid))
                 u1, u2 = DEFAULT_U if not np.all([u1, u2]) else [u1, u2]
                 Rs_tic = 1.0 if Rs_tic is None else Rs_tic
                 Ms_tic = 1.0 if Ms_tic is None else Ms_tic
@@ -4756,20 +4818,44 @@ def get_cluster_near_target(
     return (cluster, sep)
 
 
-def get_target_coord(toi=None, tic=None, name=None):
+def get_target_coord(
+    ra=None, dec=None, toi=None, tic=None, epic=None, gaiaid=None, name=None
+):
     """get target coordinate
     """
+
+    if np.all([ra, dec]):
+        target_coord = SkyCoord(ra=ra * u.deg, dec=dec * u.deg)
     # TIC
-    if (toi is not None) or (tic is not None):
-        toi = get_toi(toi=toi, tic=tic, clobber=True, verbose=False)
+    elif toi:
+        toi_params = get_toi(toi=toi, clobber=False, verbose=False)
         target_coord = SkyCoord(
-            ra=toi["RA"].values[0],
-            dec=toi["Dec"].values[0],
-            unit=(u.hourangle, u.degree),
+            ra=toi_params["RA"].values[0],
+            dec=toi_params["Dec"].values[0],
+            distance=toi_params["Stellar Distance (pc)"].values[0],
+            unit=(u.hourangle, u.degree, u.pc),
+        )
+    elif tic:
+        df = Catalogs.query_criteria(catalog="Tic", ID=tic).to_pandas()
+        target_coord = SkyCoord(
+            ra=df.iloc[0]["ra"],
+            dec=df.iloc[0]["dec"],
+            distance=Distance(parallax=df.iloc[0]["plx"] * u.mas).pc,
+            unit=(u.degree, u.degree, u.pc),
         )
     # name resolver
-    else:
+    elif epic is not None:
+        star = client.k2_star(int(epic))
+        ra = float(star.k2_ra)
+        dec = float(star.k2_dec)
+        target_coord = SkyCoord(ra=ra, dec=dec, unit="deg")
+        # target_coord = SkyCoord.from_name(f"EPIC {epic}")
+    elif gaiaid is not None:
+        target_coord = SkyCoord.from_name(f"Gaia DR2 {gaiaid}")
+    elif name is not None:
         target_coord = SkyCoord.from_name(name)
+    else:
+        raise ValueError("Supply RA & Dec, TOI, TIC, or Name")
     return target_coord
 
 

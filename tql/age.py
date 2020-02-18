@@ -3,13 +3,10 @@ from os.path import join
 import numpy as np
 
 try:
-    from stardate import Star
-    from stardate.lhf import age_model
-    from stardate.lhf import gyro_model_praesepe
-    from stardate import load_samples, read_samples
+    import stardate as sd
     import corner
     import h5py
-except:
+except Exception:
     raise ValueError("pip install stardate isochrones h5py corner")
 
 
@@ -38,7 +35,7 @@ def run_stardate(
     prot, prot_err = prot
 
     # Set up the star object.
-    star = Star(
+    star = sd.Star(
         iso_params, prot=prot, prot_err=prot_err
     )  # Here's where you add a rotation period
 
@@ -64,7 +61,7 @@ def parse_samples(
     ----------
     star : stardate.Star object
     return_par : parameter of choice
-    
+
     Returns
     -------
     val, sighi, siglo : 50th, 84th, 16th percentiles
@@ -103,9 +100,12 @@ def parse_samples(
         return feh, feh_errp, feh_errm, feh_samples
 
     if return_lndist:
-        lndistance, lndistance_errp, lndistance_errm, lndistance_samples = star.distance_results(
-            burnin=10
-        )
+        (
+            lndistance,
+            lndistance_errp,
+            lndistance_errm,
+            lndistance_samples,
+        ) = star.distance_results(burnin=10)
         if verbose:
             print(
                 "ln(distance) = {0:.2f} + {1:.2f} - {2:.2f} ".format(
@@ -125,12 +125,12 @@ def parse_samples(
 
 def load_stardate_samples(loc: str = "./", filename: str = "samples"):
     # Load the samples.
-    flatsamples, _3Dsamples, posterior_samples, prior_samples = load_samples(
+    flatsamples, _3Dsamples, posterior_samples, prior_samples = sd.load_samples(
         join(loc, "{filename}.h5"), burnin=1
     )
 
     # Extract the median and maximum likelihood parameter estimates from the samples.
-    return read_samples(flatsamples)
+    return sd.read_samples(flatsamples)
 
 
 def plot_corner(flatsamples):
@@ -161,7 +161,7 @@ def get_gyro_age(bprp: float, prot: float, verbose: bool = True):
     """
 
     log10_period = np.log10(prot)
-    log10_age_yrs = age_model(log10_period, bprp)
+    log10_age_yrs = sd.lhf.age_model(log10_period, bprp)
 
     if verbose:
         age = (10 ** log10_age_yrs) * 1e-6
@@ -185,14 +185,14 @@ def get_prot_from_gyro_age(bprp: float, age: float, verbose: bool = True):
     """
 
     log10_age_yrs = np.log10(age)
-    log10_period = gyro_model_praesepe(log10_age_yrs, bprp)
+    log10_period = sd.lhf.gyro_model_praesepe(log10_age_yrs, bprp)
     if verbose:
         age = 10 ** log10_period
         print(f"{prot} days")
     return age
 
 
-if "__name__" == __main__:
+if __name__ == "__main__":
     if True:
         # Create a dictionary of observables
         iso_params = {
@@ -225,11 +225,11 @@ if "__name__" == __main__:
     if False:
         bprp = 0.82  # Gaia BP - RP color.
         log10_period = np.log10(26)
-        log10_age_yrs = age_model(log10_period, bprp)
+        log10_age_yrs = sd.lhf.age_model(log10_period, bprp)
         print((10 ** log10_age_yrs) * 1e-6, "Myr")
 
     if False:
         bprp = 0.82  # Gaia BP - RP color.
         log10_age_yrs = np.log10(4.56 * 1e9)
-        log10_period = gyro_model_praesepe(log10_age_yrs, bprp)
+        log10_period = sd.lhf.gyro_model_praesepe(log10_age_yrs, bprp)
         print(10 ** log10_period, "days")

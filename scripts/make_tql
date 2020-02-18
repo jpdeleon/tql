@@ -14,10 +14,10 @@ user = getpass.getuser()
 #from astroplan import download_IERS_A
 
 try:
-    from tql.tql import generate_QL, generate_all_lc, generate_FOV, generate_multi_aperture_lc, collate_tls_results, get_toi, plot_target_in_cluster
+    from tql.tql import generate_QL, generate_all_lc, generate_FOV, generate_multi_aperture_lc, collate_tls_results, get_toi, get_tois, get_target_coord, plot_target_in_cluster
 except:
     sys.path.append('../tql/')
-    from tql import generate_QL, generate_all_lc, generate_FOV, generate_multi_aperture_lc, collate_tls_results, get_toi, plot_target_in_cluster
+    from tql import generate_QL, generate_all_lc, generate_FOV, generate_multi_aperture_lc, collate_tls_results, get_toi, get_tois, get_target_coord, plot_target_in_cluster
 
 APER_MASK_DESC=['pipeline: mask suggested by the official pipeline',
                 'round: circular aperture mask',
@@ -25,27 +25,32 @@ APER_MASK_DESC=['pipeline: mask suggested by the official pipeline',
                 'all: all pixels within aperture',
                 'threshold: all pixels brighter than 3-sigma above the median flux'
                 'percentile: specific percentile of the flux distribution']
-APPHOT_METHOD_DESC=['sap: simple aperture photometry',
-                    'pdcsap: pre-data conditioning sap']
+PHOT_METHOD_DESC=['sap: aperture photometry',
+                    'prf: ']
+LC_TYPE_DESC = ['custom: custom lightcurve from tpf',
+                'sap: simple aperture photometry',
+                'pdcsap: pre-data conditioning sap']
 
 parser = argparse.ArgumentParser(description="""
                 Make TESS Quick Look plots""",
                 usage='use "%(prog)s --help" for more information',
                 formatter_class=argparse.RawTextHelpFormatter)
-parser.add_argument('-ra', help='R.A. [deg]', type=float, default=None)
-parser.add_argument('-dec', help='Dec. [deg]', type=float, default=None)
+parser.add_argument('--ra', help='R.A. [deg]', type=float, default=None)
+parser.add_argument('--dec', help='Dec. [deg]', type=float, default=None)
 parser.add_argument('-n', '--name', help='star name in database (e.g. WASP-80)', type=str, default=None)
-parser.add_argument('-tic', help='TIC', type=int, default=None)
-parser.add_argument('-toi', help='TOI e.g. 125.01', type=float, default=None)
-parser.add_argument('-lc', help='lc pipeline (default=SAP):\n{}'.format(np.c_[APPHOT_METHOD_DESC]),
-    choices=['sap','pdcsap'], default='sap')
-parser.add_argument('--aper_mask',
+parser.add_argument('--tic', help='TIC ID e.g. 52368076', type=int, default=None)
+parser.add_argument('--toi', help='TOI ID e.g. 125.01', type=float, default=None)
+parser.add_argument('--epic', help='EPIC ID e.g. 210490365', type=float, default=None)
+parser.add_argument('--gaia', help='GAIA DR2 ID e.g. 3311804515502788352', type=float, default=None)
+parser.add_argument('--lc', help='lc type (default=custom):\n{}'.format(np.c_[LC_TYPE_DESC]),
+    choices=['custom','sap','pdcsap'], default='custom')
+parser.add_argument('-m', '--aper_mask',
     help='photometric aperture mask (default=pipeline):\n{}'.format(np.c_[APER_MASK_DESC]),
     choices=['pipeline','round','square','all','threshold','percentile'], default='pipeline')
 parser.add_argument('--sector', help='e.g. --sector 1; default is first available sector',
     type=int, default=None)
-parser.add_argument('--cluster', help='check if target is member of cluster e.g. --cluster hyades',
-    type=str, default=None)
+# parser.add_argument('--cluster', help='check if target is member of cluster e.g. --cluster hyades',
+#     type=str, default=None)
 parser.add_argument('--sectors', help='e.g. --sectors 1 2 3',
     nargs='*', type=int, default=None)
 parser.add_argument('-a', '--all_sectors', help='use data from all sectors (default=False)',
@@ -88,9 +93,12 @@ args = parser.parse_args()
 ra   = args.ra
 dec  = args.dec
 tic  = args.tic
+epic = args.epic
+gaia = args.gaia
 toi  = args.toi
 name  = args.name
-apphot_method = args.lc.lower()
+#phot_method = 'sap' #prf
+lc_type = args.lc.lower()
 sap_mask = args.aper_mask
 aper_radius = args.aper_radius
 aper_radii = args.aper_radii
@@ -100,7 +108,7 @@ cadence = args.cadence
 use_pld  = args.pld
 use_gp   = not args.no_gp
 use_sff  = args.sff
-cluster  = args.cluster
+# cluster  = args.cluster
 fov_only = args.fov_only
 savefig  = args.save
 sector   = args.sector
@@ -117,6 +125,11 @@ collate_only  = args.collate_only
 MISSION = 'TESS'
 
 if __name__ == "__main__":
+    if (lc_type=='sap') | (lc_type=='pdcsap'):
+        if cadence=='long':
+            parser.error('--lc=SAP|PDCSAP requires --cadence=short')
+        if sap_mask!='pipeline':
+            parser.error('--lc=SAP|PDCSAP requires --aper_mask=pipeline')
     if use_pld==use_sff==True:
         raise ValueError('choose either use_pld or use_sff but not both')
     if np.any([sap_mask=='round',sap_mask=='square']):
@@ -146,34 +159,28 @@ if __name__ == "__main__":
         else:
             figoutdir='.'
 
-        if np.all([ra,dec]):
-            #search by given coordinates
-            targ_coord = SkyCoord(ra*u.deg, dec*u.deg)
-        elif tic is not None:
-            #search lk directly by tic
-            ticstr = 'TIC {}'.format(tic)
-            res = lk.search_targetpixelfile(ticstr, mission=MISSION, sector=sector)
-            if len(res)>0:
-                ra,dec = res.table.to_pandas()[['s_ra','s_dec']].values[0]
-                targ_coord = SkyCoord(ra=ra, dec=dec, unit=(u.degree, u.degree))
-            else:
-                raise ValueError('check tic id\n')
-        elif name:
-            targ_coord = SkyCoord.from_name(name)
-        else:
-            #search by coordinates from tess alerts
-            if np.any([toi,tic]):
-                q = get_toi(toi=toi, tic=None, clobber=clobber,
-                                outdir='../data/', verbose=False)
-                if len(q)>0:
-                    ra, dec = q[['RA','Dec']].values[0]
-                    tic = q['TIC ID'].values[0]
-                    targ_coord = SkyCoord(ra=ra, dec=dec, unit=(u.hourangle, u.degree))
-                else:
-                    #FIXME: how to get generic tic
-                    raise ValueError('TIC/TOI not found!')
-            else:
-                raise ValueError('Provide ra & dec or tic or toi or name')
+        if (tic is not None) and (toi is None):
+            tois = get_tois(clobber=True, verbose=False)
+            idx = tois["TIC ID"].isin([tic])
+            if sum(idx) > 0:
+                toi = tois.loc[idx, "TOI"].values[0]
+                if verbose:
+                    print(f"TIC {tic} is TOI {int(toi)}!")
+        if toi is not None:
+            toi_params = get_toi(
+                toi=toi, clobber=clobber, verbose=False
+            )
+        if (tic is None) and (toi is not None):
+            tic = int(toi_params["TIC ID"].values[0])
+        targ_coord = get_target_coord(
+            ra=ra,
+            dec=dec,
+            toi=toi,
+            tic=tic,
+            epic=epic,
+            gaiaid=gaia,
+            name=name,
+        )
 
         if cadence=='long':
             assert sap_mask!='pipeline', '--aper_mask=pipeline (default) is not available for FFI data. Try {round, square, threshold, percentile}.'
@@ -181,17 +188,17 @@ if __name__ == "__main__":
                 raise NotImplementedError
             else:
                 res = generate_QL(targ_coord,toi=toi,tic=tic,sector=sector,
-                        cadence=cadence,#cutout_size=cutout_size,
+                        cadence=cadence,lc_type=lc_type,#cutout_size=cutout_size,
                         use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
                         apply_data_quality_mask=apply_data_quality_mask,
-                        apphot_method=apphot_method,sap_mask=sap_mask,
+                        sap_mask=sap_mask,
                         aper_radius=aper_radius,percentile=percentile,
                         clobber=clobber,fitsoutdir=fitsoutdir,figoutdir=figoutdir,
                         savefig=savefig,verbose=verbose)
 
         elif fov_only:
-            generate_FOV(targ_coord,tic=tic,toi=toi,sector=sector,
-                         apphot_method=apphot_method,sap_mask=sap_mask,
+            generate_FOV(targ_coord,tic=tic,toi=toi,sector=sector,lc_type=lc_type,
+                         sap_mask=sap_mask,
                          aper_radius=aper_radius,percentile=percentile,
                          fitsoutdir=fitsoutdir,figoutdir=figoutdir,savefig=savefig,
                          clobber=clobber,verbose=verbose)
@@ -200,7 +207,7 @@ if __name__ == "__main__":
             res = generate_all_lc(targ_coord,toi=toi,tic=tic,sectors=sectors,
                         apply_data_quality_mask=apply_data_quality_mask,
                         use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
-                        apphot_method=apphot_method,
+                        lc_type=lc_type,
                         aper_radius=aper_radius,percentile=percentile,
                         sap_mask=sap_mask,clobber=clobber,fitsoutdir=fitsoutdir,
                         figoutdir=figoutdir,savefig=savefig,verbose=verbose)
@@ -214,15 +221,15 @@ if __name__ == "__main__":
             res = generate_multi_aperture_lc(targ_coord,aper_radii,
                         tic=tic,toi=toi,sector=sector,percentiles=percentiles,
                         use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
-                        fitsoutdir=fitsoutdir,figoutdir=figoutdir,
-                        apphot_method=apphot_method,sap_mask=sap_mask,
+                        fitsoutdir=fitsoutdir,figoutdir=figoutdir,lc_type=lc_type,
+                        sap_mask=sap_mask,
                         savefig=savefig,clobber=clobber,verbose=verbose)
 
         else:
             res = generate_QL(targ_coord,toi=toi,tic=tic,sector=sector,
                         use_pld=use_pld,use_gp=use_gp,use_sff=use_sff,
                         apply_data_quality_mask=apply_data_quality_mask,
-                        apphot_method=apphot_method,sap_mask=sap_mask,
+                        sap_mask=sap_mask,
                         aper_radius=aper_radius,percentile=percentile,
                         clobber=clobber,fitsoutdir=fitsoutdir,figoutdir=figoutdir,
-                        savefig=savefig,verbose=verbose)
+                        lc_type=lc_type,savefig=savefig,verbose=verbose)

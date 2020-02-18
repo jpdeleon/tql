@@ -2,6 +2,10 @@ from __future__ import print_function, absolute_import
 
 __version__ = "0.1"
 
+from .target import *
+from .utils import *
+from .plot import *
+# from .age import *
 from .tql import (
     generate_QL,
     generate_all_lc,

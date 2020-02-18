@@ -1,5 +1,0 @@
-#additional scripts
-query_stellar_params(toi, tic, source=['tic8','gaiaDR2'])
-query_toi()
-query_tic()
-
