@@ -43,7 +43,7 @@ TESS_JD_offset = 2457000
 SG_FILTER_WINDOW_SC = 401  # short-cadence: 361x2min = 722min= 12 hr
 SG_FILTER_WINDOW_LC = 11  # long-cadence:  25x30min = 750min = 12.5 hr
 TESS_pix_scale = 21 * u.arcsec  # /pix
-FFI_CUTOUT_SIZE = 15  # pix
+FFI_CUTOUT_SIZE = 12  # pix
 PHOTMETHOD = "aperture"  # or 'prf'
 BINSIZE_SC = 5  # bin == 10 minutes
 # APPHOTMETHOD  =  'pipeline'  or 'all' or threshold --> uses tpf.extract_aperture_photometry
@@ -937,7 +937,7 @@ def generate_QL(
         elif lc_type=='custom':
             # tpf to lc
             raw_lc = tpf.to_lightcurve(method=PHOTMETHOD, aperture_mask=mask)
-            idx = np.isnan(raw_lc.time) | np.isnan(raw_lc.flux) | np.isnan(raw_lc.flux_err)
+            idx = np.isnan(raw_lc.time) | np.isnan(raw_lc.flux) | np.isnan(raw_lc.flux_err) | (raw_lc.flux_err<=0)
             raw_lc = raw_lc[~idx]
             #regression is only used in custom lightcurves that uses tpf
             if use_regression:
@@ -1168,10 +1168,8 @@ def generate_QL(
             )
         # phase fold
         fold_lc = flat_lc.fold(period=results.period, t0=results.T0)
-        fold_lc_2P = flat_lc.fold(period=results.period * 2, t0=results.T0)
-        fold_lc_halfP = flat_lc.fold(
-            period=results.period * 0.5, t0=results.T0
-        )
+        fold_even = fold_lc[fold_lc.even_mask]
+        fold_odd = fold_lc[fold_lc.odd_mask]
         maskhdr = tpf.hdu[2].header
         tpfwcs = WCS(maskhdr)
         # ------------------------create figure-----------------------#
@@ -1388,16 +1386,18 @@ def generate_QL(
         # ----------ax4: periodogram----------
         i = 4
         # pg.plot(ax=axs[i], c='k', unit=u.day, view='Period', scale='log', label='periodogram')
-        axs[i].axvline(results.period, alpha=0.4, lw=3)
+        axs[i].axvline(results.period, alpha=0.4, lw=3, label=f'TLS: {results.period:.2f}')
         axs[i].set_xlim(np.min(results.periods), np.max(results.periods))
         # plot harmonics: period multiples
         for n in range(2, 10):
             axs[i].axvline(
-                n * results.period, alpha=0.4, lw=1, linestyle="dashed"
-            )
+                n * results.period, alpha=0.4, lw=1, linestyle="dashed",
+                label="_nolegend_")
             axs[i].axvline(
-                results.period / n, alpha=0.4, lw=1, linestyle="dashed"
-            )
+                results.period / n, alpha=0.4, lw=1, linestyle="dashed",
+                label="_nolegend_")
+        if period is not None:
+            axs[i].axvline(period, 0, 1, color='r', lw=1, linestyle="--", label=f'TOI: {period:.2f}')
         axs[i].set_ylabel(r"SDE")
         axs[i].set_xlabel("Period [days]")
         axs[i].plot(
@@ -1405,23 +1405,23 @@ def generate_QL(
             results.power,
             color="black",
             lw=0.5,
-            label="TLS periodogram",
+            label="_nolegend_",
         )
         axs[i].set_xlim(0, max(results.periods))
-        text = "Best period={:.2f} {}".format(results.period, u.day)
+        # text = "Best period={:.2f} {}".format(results.period, u.day)
         # text = 'Best period={:.2f} {}'.format(period.value, period.unit)
         # axs[i].axvline(period.value, 0, 1, linestyle='--', color='k', linewidth=3)
-        axs[i].text(
-            0.95,
-            0.85,
-            text,
-            verticalalignment="top",
-            horizontalalignment="right",
-            transform=axs[i].transAxes,
-            color="green",
-            fontsize=15,
-        )
-        axs[i].legend()
+        # axs[i].text(
+        #     0.95,
+        #     0.85,
+        #     text,
+        #     verticalalignment="top",
+        #     horizontalalignment="right",
+        #     transform=axs[i].transAxes,
+        #     color="green",
+        #     fontsize=15,
+        # )
+        axs[i].legend(title='Best period')
 
         # ----------ax5: phase folded lc----------
         i = 5
@@ -1433,20 +1433,22 @@ def generate_QL(
         )
         # lc folded at period multiples to check for EB
         flux_offset = (1 - results.depth) * 3
-        # axs[i].plot(
-        #     fold_lc_2P.bin(BINSIZE_SC).time,
-        #     fold_lc_2P.bin(BINSIZE_SC).flux - flux_offset,
-        #     "ks",
-        #     label="2xPeriod",
-        #     alpha=0.1,
-        # )
-        # axs[i].plot(
-        #     fold_lc_halfP.bin(BINSIZE_SC).time,
-        #     fold_lc_halfP.bin(BINSIZE_SC).flux - flux_offset * 2,
-        #     "k^",
-        #     label="0.5xPeriod",
-        #     alpha=0.1,
-        # )
+        axs[i].plot(
+            fold_even.time,
+            fold_even.flux - flux_offset,
+            ".",
+            c="C2",
+            label="Even",
+            alpha=0.8,
+        )
+        axs[i].plot(
+            fold_odd.time,
+            fold_odd.flux - flux_offset,
+            ".",
+            c="C3",
+            label="Odd",
+            alpha=0.5,
+        )
         # TLS model
         axs[i].plot(
             results.model_folded_phase - 0.5,
@@ -1955,7 +1957,7 @@ def generate_all_lc(
                 # make lc
                 raw_lc = tpf.to_lightcurve(
                     method=PHOTMETHOD, aperture_mask=masks[j])
-                idx = np.isnan(raw_lc.time) | np.isnan(raw_lc.flux) | np.isnan(raw_lc.flux_err)
+                idx = np.isnan(raw_lc.time) | np.isnan(raw_lc.flux) | np.isnan(raw_lc.flux_err) | (raw_lc.flux_err<=0)
                 raw_lc = raw_lc[~idx]
 
                 if use_regression:
@@ -2204,11 +2206,8 @@ def generate_all_lc(
 
             # phase fold
             fold_lc = flat_lc.fold(period=results.period, t0=results.T0)
-            fold_lc_2P = flat_lc.fold(period=results.period * 2, t0=results.T0)
-            fold_lc_halfP = flat_lc.fold(
-                period=results.period * 0.5, t0=results.T0
-            )
-
+            fold_even = fold_lc[fold_lc.even_mask]
+            fold_odd = fold_lc[fold_lc.odd_mask]
             # ----------ax2: raw lc plot----------
             i = 2
             # ax2 = full_lc.errorbar(label='raw lc',ax=ax[i]) <-- plot with single color
@@ -2346,21 +2345,23 @@ def generate_all_lc(
             fold_lc.scatter(ax=ax[i], color="k", alpha=0.1, label="unbinned")
 
             flux_offset = (1 - results.depth) * 3
-            # ax[i].plot(
-            #     fold_lc_2P.bin(BINSIZE_SC).time,
-            #     fold_lc_2P.bin(BINSIZE_SC).flux - flux_offset,
-            #     "ks",
-            #     label="2xPeriod",
-            #     alpha=0.1,
-            # )
-            # ax[i].plot(
-            #     fold_lc_halfP.bin(BINSIZE_SC).time,
-            #     fold_lc_halfP.bin(BINSIZE_SC).flux - flux_offset * 2,
-            #     "k^",
-            #     label="0.5xPeriod",
-            #     alpha=0.1,
-            # )
-            # ax[i].legend(loc=3)
+            ax[i].plot(
+                fold_even.time,
+                fold_even.flux - flux_offset,
+                ".",
+                c="C2",
+                label="Even",
+                alpha=0.8,
+            )
+            ax[i].plot(
+                fold_odd.time,
+                fold_odd.flux - flux_offset,
+                ".",
+                c="C3",
+                label="Odd",
+                alpha=0.5,
+            )
+            ax[i].legend(loc=3)
 
             rprs = results["rp_rs"]
             t14 = results.duration * u.day.to(u.hour)
@@ -2503,6 +2504,7 @@ def generate_all_lc(
             if verbose:
                 print(msg)
             pl.close()
+            return results
         else:
             msg = "No tpf file found! Check FFI data using --cadence=long\n"
             logging.info(msg)
@@ -2518,7 +2520,6 @@ def generate_all_lc(
         body = logfile.read()
     finally:
         logfile.close()
-    return results
 
 
 def generate_FOV(
@@ -4085,6 +4086,8 @@ def generate_multi_aperture_lc(
             if ~np.any(pd.isnull([results.period, results.T0])):
                 # check if TLS input are not np.nan or np.NaN or None
                 fold_lc = flat_lc.fold(period=results.period, t0=results.T0)
+                fold_even = fold_lc[fold_lc.even_mask]
+                fold_odd = fold_lc[fold_lc.odd_mask]
             # elif ~np.any(pd.isnull([period,t0])):
             #     #check if TLS input are not np.nan or np.NaN or None
             #     fold_lc = flat_lc.fold(period=period, t0=t0)
