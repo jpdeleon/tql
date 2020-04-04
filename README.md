@@ -72,9 +72,9 @@ The generated figure shows 9 panels (see plot below):
  - left: flattened lightcurve and transit (determined from TLS on the right)
  - middle: TLS periodogram
  - right: phase-folded lightcurve at orbital period
-* bottom
+* bottom row
  - left: phase-folded lightcurve of odd and even transits with transit depth reference
- - middle: tpf with overlaid TESS aperture and gaia sources annotated
+ - middle: tpf with overlaid TESS aperture and annotated gaia sources
  - right: summary info
 ```
 $ tql -tic 52368076 -v -s (uses pdcsap by default)
@@ -86,6 +86,7 @@ $ tql -toi 125.01 -v -a round -r 1 (round aperture 1 pix in radius)
 $ tql -toi 125.01 -v -a square -r 2 (square aperture 2 pix in radius)
 $ tql -toi 125.01 -v -a percentile -perc 90
 $ tql -toi 125.01 -v -a threshold -t 5
+$ tql -toi 125.01 -v -a threshold -g (gls periodogram)
 ```
 
 ## Advanced usage
