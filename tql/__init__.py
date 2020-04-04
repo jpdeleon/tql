@@ -1,27 +1,3 @@
-from __future__ import print_function, absolute_import
+# -*- coding: utf-8 -*-
 
-__version__ = "0.1"
-
-from .target import *
-from .utils import *
-from .plot import *
-# from .age import *
-from .tql import (
-    generate_QL,
-    generate_all_lc,
-    generate_FOV,
-    collate_tls_results,
-    generate_multi_aperture_lc,
-    get_toi,
-    plot_target_in_cluster,
-)
-
-__all__ = [
-    "generate_QL",
-    "generate_all_lc",
-    "generate_FOV",
-    "generate_multi_aperture_lc,",
-    "collate_tls_results",
-    "get_toi",
-    "plot_target_in_cluster",
-]
+from .tql import *

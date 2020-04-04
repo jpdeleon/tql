@@ -1,39 +1,12 @@
 #!/usr/bin/env python
-import os
-import sys
-import re
-
-try:
-    from setuptools import setup
-
-    setup
-except ImportError:
-    from distutils.core import setup
-
-    setup
-
-if sys.argv[-1] == "publish":
-    os.system("python setup.py sdist upload")
-    sys.exit()
-
-# Handle encoding
-major, minor1, minor2, release, serial = sys.version_info
-if major >= 3:
-
-    def rd(filename):
-        f = open(filename, encoding="utf-8")
-        r = f.read()
-        f.close()
-        return r
+from setuptools import setup, find_packages
 
 
-else:
-
-    def rd(filename):
-        f = open(filename)
-        r = f.read()
-        f.close()
-        return r
+def rd(filename):
+    f = open(filename)
+    r = f.read()
+    f.close()
+    return r
 
 
 setup(
@@ -44,10 +17,10 @@ setup(
     author_email="jpdeleon@astron.s.u-tokyo.ac.jp",
     url="https://github.com/jpdeleon/tql",
     license=["GNU GPLv3"],
-    description="TESS Quick Look plot generator",
+    description="TESS QuickLook plot generator",
     long_description=rd("README.md") + "\n\n" + "---------\n\n",
-    package_dir={"tql": "tql"},  # "tql":"kql"
-    scripts=["scripts/make_tql"],
+    # package_dir={"tql": "tql"},
+    scripts=["scripts/tql", "scripts/rank_tls"],
     # include_package_data=True,
     keywords=["TESS", "exoplanets", "stars"],
     classifiers=[
@@ -56,16 +29,8 @@ setup(
         "Topic :: Scientific/Engineering",
         "Programming Language :: Python",
     ],
-    install_requires=[
-        "lightkurve",
-        "eleanor",
-        "astropy",
-        "transitleastsquares",
-        "fbpca",
-        "photutils",
-        "astroquery",
-        "astroplan",
-        "tqdm",
-        "deepdish",
-    ],
+    # install_requires=[
+    #    "chronos",
+    # ],
+    dependency_links=["http://github.com/jpdeleon/chronos/tarball/master#"],
 )

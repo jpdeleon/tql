@@ -1,3 +1,5 @@
+*.egg-info*
+*apjsab4a7et1_mrt*
 __pycache__
-*.hdf5
-*.log
+*ipynb_checkpoints*
+

@@ -1,0 +1,27 @@
+#!/usr/bin/env python
+
+import deepdish as dd
+from glob import glob
+import pandas as pd
+from tqdm import tqdm
+import argparse
+
+parser = argparse.ArgumentParser(description="Process some integers.")
+parser.add_argument("indir", type=str)
+args = parser.parse_args()
+
+indir = args.indir
+files = glob(indir + "/*.h5")
+assert len(files) > 0, "no *.h5 files found!"
+
+# print(files)
+sdes = {}
+for file in tqdm(files):
+    data = dd.io.load(file)
+    sdes[file] = data["SDE"]
+
+# sort by sde
+s = pd.Series(sdes, name="sde").sort_values(ascending=False)
+fp = indir + "_sde.txt"
+s.to_csv(fp)
+print(f"Saved: {fp}")
