@@ -21,6 +21,7 @@ import deepdish as dd
 from chronos.gls import Gls
 from chronos.lightcurve import ShortCadence, LongCadence
 from chronos.plot import plot_gaia_sources_on_tpf
+from chronos.constants import TESS_TIME_OFFSET
 from chronos.utils import (
     parse_aperture_mask,
     get_fluxes_within_mask,
@@ -265,7 +266,16 @@ def plot_tql(
 
         # detrend lc
         dlc = detrend(lc, break_tolerance=10)
-        ls = LombScargle(dlc.time, dlc.flux)
+        if l.toi_params is not None:
+            tmask = get_transit_mask(dlc,
+                                period=l.toi_period,
+                                epoch=l.toi_epoch-TESS_TIME_OFFSET,
+                                duration_hours=l.toi_duration)
+            label = 'masked & '
+        else:
+            tmask = np.ones_like(time, False)
+            label = ''
+        ls = LombScargle(dlc.time[~tmask], dlc.flux[~tmask])
         frequencies, powers = ls.autopower(
             minimum_frequency=1.0 / Prot_max, maximum_frequency=1.0  # 1 day
         )
@@ -280,6 +290,13 @@ def plot_tql(
         ax.set_xlabel("Period [days]")
         ax.set_ylabel("Lomb-Scargle Power")
 
+        if run_gls:
+            if verbose:
+                print("Running GLS pipeline")
+            data = (dlc.time[~tmask], dlc.flux[~tmask], flat.flux_err)
+            gls = Gls(data, Pbeg=1, verbose=True)
+            # show plot if not saved
+            fig2 = gls.plot(block=~savefig, figsize=(10, 8))
         # +++++++++++++++++++++ax phase-folded at rotation period + sinusoidal model
         ax = axs[2]
         offset = 0.5
@@ -290,11 +307,13 @@ def plot_tql(
         )
         phase = ((time / best_period) % 1) - offset
 
+        label+="folded at Prot"
+        #plot phase-folded lc with masked transits
         a = ax.scatter(
-            phase * best_period,
-            flux,
-            c=time,
-            label="folded at  Prot",
+            (phase * best_period)[~tmask],
+            flux[~tmask],
+            c=time[~tmask],
+            label=label,
             cmap=pl.get_cmap("Blues"),
         )
         pl.colorbar(a, ax=ax, label=f"Time [BTJD]")
@@ -468,7 +487,7 @@ def plot_tql(
         teff = "nan" if str(tp["Teff"]).lower() == "nan" else int(tp["Teff"])
         eteff = "nan" if str(tp["e_Teff"]).lower() == "nan" else int(tp["e_Teff"])
         msg += f"Teff={teff}+/-{eteff} K" + " " * 5
-        msg += f"logg={tp['logg']:.2f}+/-{tp['e_logg']:.2f} dex\n"
+        msg += f"logg={tp['logg']:.2f}+/-{tp['e_logg']:.2f} gcc\n"
         # spectype = star.get_spectral_type()
         # msg += f"SpT: {spectype}\n"
         msg += r"$\rho$" + f"star={tp['rho']:.2f}+/-{tp['e_rho']:.2f} gcc\n"
@@ -481,13 +500,6 @@ def plot_tql(
         else:
             fig.suptitle(f"TIC {l.ticid} (sector {l.sector})")
         # fig.tight_layout()
-        if run_gls:
-            if verbose:
-                print("Running GLS pipeline")
-            data = (flat.time, flat.flux, flat.flux_err)
-            gls = Gls(data, Pbeg=1, verbose=True)
-            # show plot if not saved
-            fig2 = gls.plot(block=~savefig, figsize=(10, 8))
         if find_cluster:
             is_gaiaid_in_cluster(l.gaiaid, catalog_name="Bouma2019", verbose=True)
             # function prints output
@@ -500,8 +512,9 @@ def plot_tql(
             fig.savefig(fp + ".png", bbox_inches="tight")
             msg += f"Saved: {fp}.png\n"
             if run_gls:
-                fig2.savefig(fp + "_gls.png", bbox_inches="tight")
-                msg += f"Saved: {fp}_gls.png\n"
+                raise NotImplementedError("To be added soon")
+                # fig2.savefig(fp + "_gls.png", bbox_inches="tight")
+                # msg += f"Saved: {fp}_gls.png\n"
         if savetls:
             tls_results["gaiaid"] = l.gaiaid
             tls_results["ticid"] = l.ticid
