@@ -73,6 +73,7 @@ parser.add_argument(
 parser.add_argument(
     "-size",
     "--cutout_size",
+    nargs=2,
     type=float,
     help="FFI cutout size for long cadence (default=[12,12] pix)",
     default=(12, 12),

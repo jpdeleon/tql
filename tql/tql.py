@@ -9,6 +9,7 @@ import argparse
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as pl
+# from scipy.signal import detrend
 import astropy.units as u
 from astropy.stats import sigma_clip
 from astropy.coordinates import SkyCoord
@@ -26,7 +27,6 @@ from chronos.utils import (
     parse_aperture_mask,
     get_fluxes_within_mask,
     get_transit_mask,
-    detrend,
     is_gaiaid_in_cluster,
 )
 
@@ -265,7 +265,12 @@ def plot_tql(
         Prot_max = baseline / 2
 
         # detrend lc
-        dlc = detrend(lc, break_tolerance=10)
+        half = lc.time.shape[0] // 2
+        if half % 2 == 0:
+            half += 1 # add 1 if even
+        dlc = lc.flatten(window_length=half, polyorder=1, break_tolerance=10)
+        # dlc = lc.copy()
+        # dlc.flux = detrend(lc.flux, bp=lc.flux//2)
         if l.toi_params is not None:
             tmask = get_transit_mask(dlc,
                                 period=l.toi_period,
@@ -273,7 +278,7 @@ def plot_tql(
                                 duration_hours=l.toi_duration)
             label = 'masked & '
         else:
-            tmask = np.ones_like(time, False)
+            tmask = np.zeros_like(time, dtype=bool)
             label = ''
         ls = LombScargle(dlc.time[~tmask], dlc.flux[~tmask])
         frequencies, powers = ls.autopower(
@@ -290,11 +295,11 @@ def plot_tql(
         ax.set_xlabel("Period [days]")
         ax.set_ylabel("Lomb-Scargle Power")
 
+        data = (dlc.time[~tmask], dlc.flux[~tmask], dlc.flux_err[~tmask])
+        gls = Gls(data, Pbeg=1, verbose=verbose)
         if run_gls:
             if verbose:
                 print("Running GLS pipeline")
-            data = (dlc.time[~tmask], dlc.flux[~tmask], flat.flux_err)
-            gls = Gls(data, Pbeg=1, verbose=True)
             # show plot if not saved
             fig2 = gls.plot(block=~savefig, figsize=(10, 8))
         # +++++++++++++++++++++ax phase-folded at rotation period + sinusoidal model
@@ -458,6 +463,14 @@ def plot_tql(
             l.contratio = sum(fluxes) - 1  # c.f. l.tic_params.contratio
 
         # +++++++++++++++++++++ax: summary
+        # add details to tls_results
+        tls_results['ticid'] = l.ticid
+        tls_results['sector'] = l.sector
+        tls_results['cont_ratio'] = l.contratio
+        # add gls_results
+        tls_results['Prot_gls'] = (gls.hpstat['P'], gls.hpstat['e_P'])
+        tls_results['amp_gls'] = (gls.hpstat['amp'], gls.hpstat['e_amp'])
+
         tp = l.tic_params
         ax = axs[8]
         Rp = tls_results["rp_rs"] * tp["rad"] * u.Rsun.to(u.Rearth)
