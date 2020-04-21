@@ -7,12 +7,13 @@ savefig = True
 verbose = True
 quality_bitmask = "default"
 apply_data_quality_mask = False
-cutout_size=(15, 15)
+cutout_size = (15, 15)
 window_length = 0.5
-lctype='custom'
+lctype = "custom"
+
 
 def test_ticid():
-    #ticid
+    # ticid
     fig = fig = plot_tql(
         gaiaid=None,
         toiid=None,
@@ -33,8 +34,9 @@ def test_ticid():
     )
     assert isinstance(fig, Figure)
 
+
 def test_toiid():
-    #square mask aper_radius=1
+    # square mask aper_radius=1
     fig = fig = plot_tql(
         gaiaid=None,
         toiid=toiid,
@@ -56,8 +58,9 @@ def test_toiid():
     )
     assert isinstance(fig, Figure)
 
+
 def test_square_mask():
-    #square mask aper_radius=2
+    # square mask aper_radius=2
     fig = fig = plot_tql(
         gaiaid=None,
         toiid=toiid,
@@ -79,8 +82,9 @@ def test_square_mask():
     )
     assert isinstance(fig, Figure)
 
+
 def test_round_mask():
-    #round mask aper_radius=1
+    # round mask aper_radius=1
     fig = fig = plot_tql(
         gaiaid=None,
         toiid=toiid,
@@ -102,8 +106,9 @@ def test_round_mask():
     )
     assert isinstance(fig, Figure)
 
+
 def test_mask_size():
-    #round mask aper_radius=2, sector 11
+    # round mask aper_radius=2, sector 11
     fig = fig = plot_tql(
         gaiaid=None,
         toiid=toiid,
@@ -125,8 +130,9 @@ def test_mask_size():
     )
     assert isinstance(fig, Figure)
 
+
 def test_cutout_size():
-    #smaller cutout_size
+    # smaller cutout_size
     fig = plot_tql(
         gaiaid=None,
         toiid=toiid,
@@ -137,7 +143,7 @@ def test_cutout_size():
         lctype=lctype,
         sap_mask="round",
         aper_radius=2,
-        cutout_size=(10,10),
+        cutout_size=(10, 10),
         quality_bitmask=quality_bitmask,
         apply_data_quality_mask=apply_data_quality_mask,
         window_length=window_length,
@@ -148,8 +154,9 @@ def test_cutout_size():
     )
     assert isinstance(fig, Figure)
 
+
 def test_name():
-    #name search
+    # name search
     fig = plot_tql(
         gaiaid=None,
         toiid=None,
@@ -169,9 +176,11 @@ def test_name():
         outdir=".",
         verbose=verbose,
     )
+    assert isinstance(fig, Figure)
+
 
 def test_percentile_mask():
-    #sap mask percentile
+    # sap mask percentile
     fig = plot_tql(
         gaiaid=None,
         toiid=toiid,
@@ -193,8 +202,9 @@ def test_percentile_mask():
     )
     assert isinstance(fig, Figure)
 
+
 def test_threshold_mask():
-    #sap mask threshold
+    # sap mask threshold
     fig = plot_tql(
         toiid=toiid,
         cadence="short",

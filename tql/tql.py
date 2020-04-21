@@ -9,6 +9,7 @@ import argparse
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as pl
+
 # from scipy.signal import detrend
 import astropy.units as u
 from astropy.stats import sigma_clip
@@ -228,8 +229,14 @@ def plot_tql(
         time, flux = lc.time, lc.flux
         if use_star_priors:
             # for wotan and tls.power
-            Rstar = l.tic_params["rad"] if l.tic_params["rad"] is not None else 1.0
-            Mstar = l.tic_params["mass"] if l.tic_params["mass"] is not None else 1.0
+            Rstar = (
+                l.tic_params["rad"] if l.tic_params["rad"] is not None else 1.0
+            )
+            Mstar = (
+                l.tic_params["mass"]
+                if l.tic_params["mass"] is not None
+                else 1.0
+            )
             Porb = 10  # TODO: arbitrary default!
             tdur = estimate_transit_duration(
                 R_s=Rstar, M_s=Mstar, P=Porb, small_planet=True
@@ -267,19 +274,21 @@ def plot_tql(
         # detrend lc
         half = lc.time.shape[0] // 2
         if half % 2 == 0:
-            half += 1 # add 1 if even
+            half += 1  # add 1 if even
         dlc = lc.flatten(window_length=half, polyorder=1, break_tolerance=10)
         # dlc = lc.copy()
         # dlc.flux = detrend(lc.flux, bp=lc.flux//2)
         if l.toi_params is not None:
-            tmask = get_transit_mask(dlc,
-                                period=l.toi_period,
-                                epoch=l.toi_epoch-TESS_TIME_OFFSET,
-                                duration_hours=l.toi_duration)
-            label = 'masked & '
+            tmask = get_transit_mask(
+                dlc,
+                period=l.toi_period,
+                epoch=l.toi_epoch - TESS_TIME_OFFSET,
+                duration_hours=l.toi_duration,
+            )
+            label = "masked & "
         else:
             tmask = np.zeros_like(time, dtype=bool)
-            label = ''
+            label = ""
         ls = LombScargle(dlc.time[~tmask], dlc.flux[~tmask])
         frequencies, powers = ls.autopower(
             minimum_frequency=1.0 / Prot_max, maximum_frequency=1.0  # 1 day
@@ -289,7 +298,9 @@ def plot_tql(
         best_freq = frequencies[idx]
         best_period = 1.0 / best_freq
         ax.plot(periods, powers, "k-")
-        ax.axvline(best_period, 0, 1, ls="--", c="r", label=f"peak={best_period:.2f}")
+        ax.axvline(
+            best_period, 0, 1, ls="--", c="r", label=f"peak={best_period:.2f}"
+        )
         ax.legend(title="Rotation period [d]")
         ax.set_xscale("log")
         ax.set_xlabel("Period [days]")
@@ -301,19 +312,24 @@ def plot_tql(
             if verbose:
                 print("Running GLS pipeline")
             # show plot if not saved
-            fig2 = gls.plot(block=~savefig, figsize=(10, 8))
+            _ = gls.plot(block=~savefig, figsize=(10, 8))
         # +++++++++++++++++++++ax phase-folded at rotation period + sinusoidal model
         ax = axs[2]
         offset = 0.5
         t_fit = np.linspace(0, 1, 100) - offset
         y_fit = ls.model(t_fit * best_period - best_period / 2, best_freq)
         ax.plot(
-            t_fit * best_period, y_fit, "r-", lw=3, label="sine model", zorder=3,
+            t_fit * best_period,
+            y_fit,
+            "r-",
+            lw=3,
+            label="sine model",
+            zorder=3,
         )
         phase = ((time / best_period) % 1) - offset
 
-        label+="folded at Prot"
-        #plot phase-folded lc with masked transits
+        label += "folded at Prot"
+        # plot phase-folded lc with masked transits
         a = ax.scatter(
             (phase * best_period)[~tmask],
             flux[~tmask],
@@ -351,10 +367,14 @@ def plot_tql(
         for i in range(2, 10):
             higher_harmonics = i * tls_results.period
             if period_min <= higher_harmonics <= period_max:
-                ax.axvline(higher_harmonics, alpha=0.4, lw=1, linestyle="dashed")
+                ax.axvline(
+                    higher_harmonics, alpha=0.4, lw=1, linestyle="dashed"
+                )
             lower_harmonics = tls_results.period / i
             if period_min <= lower_harmonics <= period_max:
-                ax.axvline(lower_harmonics, alpha=0.4, lw=1, linestyle="dashed")
+                ax.axvline(
+                    lower_harmonics, alpha=0.4, lw=1, linestyle="dashed"
+                )
         ax.set_ylabel(r"Transit Least Squares SDE")
         ax.set_xlabel("Period (days)")
         ax.plot(tls_results.periods, tls_results.power, color="black", lw=0.5)
@@ -380,8 +400,12 @@ def plot_tql(
         ax = axs[5]
         # binned phase folded lc
         fold = flat.fold(period=tls_results.period, t0=tls_results.T0)
-        fold.scatter(ax=ax, c="k", alpha=alpha, label="folded at Porb", zorder=1)
-        fold.bin(nbins).scatter(ax=ax, s=30, label=f"{bin_hr}-hr bin", zorder=2)
+        fold.scatter(
+            ax=ax, c="k", alpha=alpha, label="folded at Porb", zorder=1
+        )
+        fold.bin(nbins).scatter(
+            ax=ax, s=30, label=f"{bin_hr}-hr bin", zorder=2
+        )
 
         # TLS transit model
         ax.plot(
@@ -401,7 +425,9 @@ def plot_tql(
         ax = axs[6]
         yline = tls_results.depth
         fold.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
-        fold[fold.even_mask].bin(nbins).scatter(label="even", s=30, ax=ax, zorder=2)
+        fold[fold.even_mask].bin(nbins).scatter(
+            label="even", s=30, ax=ax, zorder=2
+        )
         ax.plot(
             tls_results.model_folded_phase - offset,
             tls_results.model_folded_model,
@@ -410,7 +436,9 @@ def plot_tql(
             label="TLS model",
         )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
-        fold[fold.odd_mask].bin(nbins).scatter(label="odd", s=30, ax=ax, zorder=3)
+        fold[fold.odd_mask].bin(nbins).scatter(
+            label="odd", s=30, ax=ax, zorder=3
+        )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
         ax.set_xlim(-width * 1.5, width * 1.5)
         ax.legend()
@@ -464,12 +492,12 @@ def plot_tql(
 
         # +++++++++++++++++++++ax: summary
         # add details to tls_results
-        tls_results['ticid'] = l.ticid
-        tls_results['sector'] = l.sector
-        tls_results['cont_ratio'] = l.contratio
+        tls_results["ticid"] = l.ticid
+        tls_results["sector"] = l.sector
+        tls_results["cont_ratio"] = l.contratio
         # add gls_results
-        tls_results['Prot_gls'] = (gls.hpstat['P'], gls.hpstat['e_P'])
-        tls_results['amp_gls'] = (gls.hpstat['amp'], gls.hpstat['e_amp'])
+        tls_results["Prot_gls"] = (gls.hpstat["P"], gls.hpstat["e_P"])
+        tls_results["amp_gls"] = (gls.hpstat["amp"], gls.hpstat["e_amp"])
 
         tp = l.tic_params
         ax = axs[8]
@@ -489,16 +517,29 @@ def plot_tql(
         msg += f"Depth={(1-tls_results.depth)*100:.2f}%\n"
         msg += f"Rp={Rp:.2f} " + r"R$_{\oplus}$" + "(diluted)" + " " * 5
         msg += f"Rp={Rp_true:.2f} " + r"R$_{\oplus}$" + "(undiluted)\n"
-        msg += f"Odd-Even mismatch={tls_results.odd_even_mismatch:.2f}" + r"$\sigma$"
+        msg += (
+            f"Odd-Even mismatch={tls_results.odd_even_mismatch:.2f}"
+            + r"$\sigma$"
+        )
         msg += "\n" * 2
         msg += "Stellar Properties\n"
         msg += "-" * 30 + "\n"
         msg += f"TIC ID={int(tp['ID'])}" + " " * 5
         msg += f"Tmag={tp['Tmag']:.2f}\n"
-        msg += f"Rstar={tp['rad']:.2f}+/-{tp['e_rad']:.2f} " + r"R$_{\odot}$" + " " * 5
-        msg += f"Mstar={tp['mass']:.2f}+/-{tp['e_mass']:.2f} " + r"M$_{\odot}$" + "\n"
+        msg += (
+            f"Rstar={tp['rad']:.2f}+/-{tp['e_rad']:.2f} "
+            + r"R$_{\odot}$"
+            + " " * 5
+        )
+        msg += (
+            f"Mstar={tp['mass']:.2f}+/-{tp['e_mass']:.2f} "
+            + r"M$_{\odot}$"
+            + "\n"
+        )
         teff = "nan" if str(tp["Teff"]).lower() == "nan" else int(tp["Teff"])
-        eteff = "nan" if str(tp["e_Teff"]).lower() == "nan" else int(tp["e_Teff"])
+        eteff = (
+            "nan" if str(tp["e_Teff"]).lower() == "nan" else int(tp["e_Teff"])
+        )
         msg += f"Teff={teff}+/-{eteff} K" + " " * 5
         msg += f"logg={tp['logg']:.2f}+/-{tp['e_logg']:.2f} gcc\n"
         # spectype = star.get_spectral_type()
@@ -514,7 +555,9 @@ def plot_tql(
             fig.suptitle(f"TIC {l.ticid} (sector {l.sector})")
         # fig.tight_layout()
         if find_cluster:
-            is_gaiaid_in_cluster(l.gaiaid, catalog_name="Bouma2019", verbose=True)
+            is_gaiaid_in_cluster(
+                l.gaiaid, catalog_name="Bouma2019", verbose=True
+            )
             # function prints output
         end = timer()
         msg = ""

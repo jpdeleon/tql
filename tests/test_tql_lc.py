@@ -3,6 +3,7 @@
 373308740 (Tmag=14) and its neighbor 373308741 (12.7)
 Their tql are good to compare for testing
 """
+from matplotlib.figure import Figure
 from tql import plot_tql
 
 toiid = 1063
@@ -13,6 +14,7 @@ apply_data_quality_mask = False
 cutout_size = (15, 15)
 window_length = 0.5
 lctype = "custom"
+
 
 def test_():
     # toiid
@@ -37,6 +39,7 @@ def test_():
     )
     assert isinstance(fig, Figure)
 
+
 def test_square_mask():
     # square mask aper_radius=1
     fig = plot_tql(
@@ -59,6 +62,7 @@ def test_square_mask():
         verbose=verbose,
     )
     assert isinstance(fig, Figure)
+
 
 def test_mask_size():
     # square mask aper_radius=2
@@ -83,6 +87,7 @@ def test_mask_size():
     )
     assert isinstance(fig, Figure)
 
+
 def test_round_mask():
     # round mask aper_radius=1
     fig = plot_tql(
@@ -105,6 +110,7 @@ def test_round_mask():
         verbose=verbose,
     )
     assert isinstance(fig, Figure)
+
 
 def test_other_sector():
     # round mask aper_radius=2, sector 11
@@ -129,6 +135,7 @@ def test_other_sector():
     )
     assert isinstance(fig, Figure)
 
+
 def test_custout_size():
     # smaller cutout_size
     fig = plot_tql(
@@ -151,6 +158,7 @@ def test_custout_size():
         verbose=verbose,
     )
     assert isinstance(fig, Figure)
+
 
 def test_name():
     # name search
@@ -175,6 +183,7 @@ def test_name():
     )
     assert isinstance(fig, Figure)
 
+
 def test_percentile_mask():
     # sap mask percentile
     fig = plot_tql(
@@ -197,6 +206,7 @@ def test_percentile_mask():
         verbose=verbose,
     )
     assert isinstance(fig, Figure)
+
 
 def test_threshold_mask():
     # sap mask threshold
