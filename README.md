@@ -6,6 +6,10 @@
 TESS Quick Look plot generator.
 Note that [chronos](https://github.com/jpdeleon/chronos) is a dependency.
 
+
+## Run at Google colab
+<a href="https://colab.research.google.com/github/jpdeleon/tql/blob/master/notebooks/examples-QL.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+
 ## Usage
 ```shell
 optional arguments:

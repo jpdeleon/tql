@@ -507,12 +507,12 @@ def plot_tql(
         msg = "Candidate Properties\n"
         msg += "-" * 30 + "\n"
         # secs = ','.join(map(str, l.all_sectors))
-        msg += f"SDE={tls_results.SDE:.2f} (sector={l.sector} in {l.all_sectors})\n"
+        msg += f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors})\n"
         msg += (
-            f"Period={tls_results.period:.2f}+/-{tls_results.period_uncertainty:.2f} d"
+            f"Period={tls_results.period:.4f}+/-{tls_results.period_uncertainty:.4f} d"
             + " " * 5
         )
-        msg += f"T0={tls_results.T0:.2f} BTJD\n"
+        msg += f"T0={tls_results.T0+TESS_TIME_OFFSET:.4f} BJD\n"
         msg += f"Duration={tls_results.duration*24:.2f} hr" + " " * 10
         msg += f"Depth={(1-tls_results.depth)*100:.2f}%\n"
         msg += f"Rp={Rp:.2f} " + r"R$_{\oplus}$" + "(diluted)" + " " * 5
