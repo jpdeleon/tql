@@ -54,6 +54,7 @@ def plot_tql(
     Porb_limits=None,
     use_star_priors=False,
     edge_cutoff=0.1,
+    sigma=(10, 3),
     run_gls=False,
     find_cluster=True,
     savefig=False,
@@ -87,6 +88,8 @@ def plot_tql(
         https://wotan.readthedocs.io/en/latest/Interface.html#module-flatten.flatten
     window_length : float
         length in days of the filter window (default=0.5; overridden by use_star_priors)
+    sigma : tuple
+        sigma_lower & sigma_upper for outlier rejection after flattening
     Porb_limits : tuple
         orbital period search limits for TLS (default=None)
     use_star_priors : bool
@@ -257,7 +260,9 @@ def plot_tql(
             cval=5.0,  # Tuning parameter for the robust estimators
         )
         # f > np.median(f) + 5 * np.std(f)
-        idx = sigma_clip(wflat, sigma_lower=7, sigma_upper=3).mask
+        idx = sigma_clip(
+            wflat, sigma_lower=sigma[0], sigma_upper=sigma[1]
+        ).mask
         # replace flux values with that from wotan
         flat = flat[~idx]
         trend = trend[~idx]
@@ -307,7 +312,7 @@ def plot_tql(
         ax.set_ylabel("Lomb-Scargle Power")
 
         data = (dlc.time[~tmask], dlc.flux[~tmask], dlc.flux_err[~tmask])
-        gls = Gls(data, Pbeg=1, verbose=verbose)
+        gls = Gls(data, Pbeg=0.1, verbose=verbose)
         if run_gls:
             if verbose:
                 print("Running GLS pipeline")
@@ -492,6 +497,9 @@ def plot_tql(
 
         # +++++++++++++++++++++ax: summary
         # add details to tls_results
+        tls_results["time_raw"] = lc.time
+        tls_results["flux_raw"] = lc.flux
+        tls_results["flux_flat"] = flat.flux
         tls_results["ticid"] = l.ticid
         tls_results["sector"] = l.sector
         tls_results["cont_ratio"] = l.contratio

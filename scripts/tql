@@ -100,6 +100,13 @@ parser.add_argument(
     default=0.1,
 )
 parser.add_argument(
+    "--sigma_clip",
+    type=float,
+    help="(sigma_lo,sigma_hi) for outlier rejection after flattening lc",
+    nargs=2,
+    default=(10, 5),
+)
+parser.add_argument(
     "-qm",
     "--quality_mask",
     action="store_true",
@@ -180,6 +187,7 @@ if __name__ == "__main__":
         apply_data_quality_mask=args.quality_mask,
         flatten_method=args.flatten_method,
         window_length=args.window_length,
+        sigma=args.sigma_clip,
         cutout_size=args.cutout_size,
         bin_hr=args.bin_hr,
         Porb_limits=args.period_limits,
