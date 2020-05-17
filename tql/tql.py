@@ -499,6 +499,7 @@ def plot_tql(
         # add details to tls_results
         tls_results["time_raw"] = lc.time
         tls_results["flux_raw"] = lc.flux
+        tls_results["time_flat"] = flat.time
         tls_results["flux_flat"] = flat.flux
         tls_results["ticid"] = l.ticid
         tls_results["sector"] = l.sector
