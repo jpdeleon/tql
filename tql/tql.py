@@ -139,7 +139,9 @@ def plot_tql(
         if cadence == "long":
             sap_mask = "square" if sap_mask is None else sap_mask
             lctype = "custom" if lctype is None else lctype
-            assert lctype in ["custom", "cdips"]
+            lctypes = ["custom", "cdips", "pathos"]
+            errmsg = f"{lctype} is not available in cadence=long"
+            assert lctype in lctypes, errmsg
             alpha = 0.5
             lightcurve = LongCadence(
                 gaiaDR2id=gaiaid,
@@ -166,7 +168,9 @@ def plot_tql(
         elif cadence == "short":
             sap_mask = "pipeline" if sap_mask is None else sap_mask
             lctype = "pdcsap" if lctype is None else lctype
-            assert lctype in ["pdcsap", "sap", "custom"]
+            lctypes = ["pdcsap", "sap", "custom"]
+            errmsg = f"{lctype} is not available in cadence=short"
+            assert lctype in lctypes, errmsg
             alpha = 0.1
             lightcurve = ShortCadence(
                 gaiaDR2id=gaiaid,
@@ -211,11 +215,19 @@ def plot_tql(
             # just downloads lightcurvefile;
             lc = l.get_lc(lctype)
         elif lctype == "cdips":
+            errmsg = "cdips is only available for cadence=long"
+            assert l.cadence == "long", errmsg
             #  just downloads fits file
             lc = l.get_cdips_lc()
             l.aper_mask = l.cdips.get_aper_mask_cdips()
+        elif lctype == "pathos":
+            errmsg = "pathos is only available for cadence=long"
+            assert l.cadence == "long", errmsg
+            #  just downloads fits file
+            lc = l.get_pathos_lc()
+            l.aper_mask = l.pathos.get_aper_mask_pathos()
         else:
-            errmsg = "use lctype=[custom,sap,pdcsap,cdips]"
+            errmsg = "use lctype=[custom,sap,pdcsap,cdips,pathos]"
             raise ValueError(errmsg)
 
         if (outdir is not None) & (not os.path.exists(outdir)):
@@ -226,7 +238,7 @@ def plot_tql(
 
         # +++++++++++++++++++++ax: Raw + trend
         ax = axs[0]
-        lc = lc.normalize().remove_nans().remove_outliers()
+        lc = lc.normalize().remove_nans()  # .remove_outliers(sigma=5)
         flat, trend = lc.flatten(
             window_length=101, return_trend=True
         )  # flat and trend here are just place-holder
@@ -299,7 +311,7 @@ def plot_tql(
             label = ""
         ls = LombScargle(dlc.time[~tmask], dlc.flux[~tmask])
         frequencies, powers = ls.autopower(
-            minimum_frequency=1.0 / Prot_max, maximum_frequency=1.0  # 1 day
+            minimum_frequency=1.0 / Prot_max, maximum_frequency=2.0  # 0.5 day
         )
         periods = 1.0 / frequencies
         idx = np.argmax(powers)
@@ -314,7 +326,11 @@ def plot_tql(
         ax.set_xlabel("Period [days]")
         ax.set_ylabel("Lomb-Scargle Power")
 
-        data = (dlc.time[~tmask], dlc.flux[~tmask], dlc.flux_err[~tmask])
+        if lctype == "pathos":
+            # pathos do not have flux_err
+            data = (dlc.time[~tmask], dlc.flux[~tmask])
+        else:
+            data = (dlc.time[~tmask], dlc.flux[~tmask], dlc.flux_err[~tmask])
         gls = Gls(data, Pbeg=0.1, verbose=verbose)
         if run_gls:
             if verbose:
@@ -356,9 +372,12 @@ def plot_tql(
         ax = axs[4]
         period_min = 0.1 if Porb_min is None else Porb_min
         period_max = baseline / 2 if Porb_max is None else Porb_max
-        tls_results = tls(
-            flat.time, flat.flux, flat.flux_err  # somewhat improves SDE
-        ).power(
+        if lctype == "pathos":
+            data = flat.time, flat.flux
+        else:
+            # err somewhat improves SDE
+            data = flat.time, flat.flux, flat.flux_err
+        tls_results = tls(*data).power(
             R_star=Rstar,  # 0.13-3.5 default
             R_star_max=Rstar + 0.1 if Rstar > 3.5 else 3.5,
             M_star=Mstar,  # 0.1-1
@@ -561,7 +580,10 @@ def plot_tql(
         msg = "Candidate Properties\n"
         msg += "-" * 30 + "\n"
         # secs = ','.join(map(str, l.all_sectors))
-        msg += f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors})\n"
+        if l.mission == "tess":
+            msg += f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors})\n"
+        else:
+            msg += f"SDE={tls_results.SDE:.4f} (campaign={l.sector} in {l.all_campaigns})\n"
         msg += (
             f"Period={tls_results.period:.4f}+/-{tls_results.period_uncertainty:.4f} d"
             + " " * 5
@@ -644,7 +666,7 @@ def plot_tql(
         print(f"Exception message: {ex_value}")
         # Format stacktrace
         for trace in trace_back:
-            print(f"File : {trace[0]}")
             print(f"Line : {trace[1]}")
             print(f"Func : {trace[2]}")
-            print(f"Message : {trace[3]}")
+            # print(f"Message : {trace[3]}")
+            print(f"File : {trace[0]}")

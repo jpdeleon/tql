@@ -43,9 +43,16 @@ parser.add_argument(
     "--lctype",
     type=str,
     help="type of lightcurve",
-    choices=["pdcsap", "sap", "custom", "cdips"],
+    choices=["pdcsap", "sap", "custom", "cdips", "pathos"],
     default=None,
 )
+# parser.add_argument(
+#     "-m",
+#     "--mission",
+#     type=str,
+#     help="TESS or K2 or Kepler",
+#     default='TESS',
+# )
 parser.add_argument(
     "-a",
     "--aper_mask",
@@ -79,7 +86,7 @@ parser.add_argument(
     default=(12, 12),
 )
 parser.add_argument(
-    "-m",
+    "-method",
     "--flatten_method",
     type=str,
     help="wotan flatten method (default=biweight)",
