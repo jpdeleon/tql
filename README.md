@@ -118,7 +118,3 @@ $ rank_tls indir
 ## To do
 * find additional planets by iterative masking of transit
 * implement vetting procedure in sec 2.3 of [Heller+2019](https://arxiv.org/pdf/1905.09038.pdf)
-  - SDE>9
-  - odd_even_mismatch < 3σ
-* take note of [rolling bands](https://docs.lightkurve.org/tutorials/04-identify-rolling-band.html) in TESS, if there is any, which may be solved with background subtraction
-* orient image properly to to show easy comparison with panel 1 and 2 (currently image is simply inverted!)

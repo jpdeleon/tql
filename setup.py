@@ -29,8 +29,7 @@ setup(
         "Topic :: Scientific/Engineering",
         "Programming Language :: Python",
     ],
-    # install_requires=[
-    #    "chronos",
-    # ],
-    dependency_links=["http://github.com/jpdeleon/chronos/tarball/master#"],
+    dependency_links=[
+        "http://github.com/jpdeleon/chronos/tarball/master#egg=chronos"
+    ],
 )

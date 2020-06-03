@@ -10,7 +10,7 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as pl
 
-# from scipy.signal import detrend
+from scipy.signal import detrend
 import astropy.units as u
 from astropy.stats import sigma_clip
 from astropy.coordinates import SkyCoord
@@ -57,7 +57,7 @@ def plot_tql(
     edge_cutoff=0.1,
     sigma=(10, 3),
     run_gls=False,
-    find_cluster=True,
+    find_cluster=False,
     savefig=False,
     savetls=False,
     savegls=False,
@@ -289,18 +289,9 @@ def plot_tql(
         baseline = int(time[-1] - time[0])
         Prot_max = baseline / 2
 
-        # detrend lc
-        fraction = lc.time.shape[0] // 4
-        if fraction % 2 == 0:
-            fraction += 1  # add 1 if even
-        dlc = lc.flatten(
-            window_length=fraction, polyorder=1, break_tolerance=10
-        )
-        # dlc = lc.copy()
-        # dlc.flux = detrend(lc.flux, bp=lc.flux//2)
         if l.toi_params is not None:
             tmask = get_transit_mask(
-                dlc,
+                lc,
                 period=l.toi_period,
                 epoch=l.toi_epoch - TESS_TIME_OFFSET,
                 duration_hours=l.toi_duration,
@@ -309,6 +300,17 @@ def plot_tql(
         else:
             tmask = np.zeros_like(time, dtype=bool)
             label = ""
+
+        # detrend lc
+        fraction = lc.time.shape[0] // 10
+        if fraction % 2 == 0:
+            fraction += 1  # add 1 if even
+        dlc = lc.flatten(
+            window_length=fraction, polyorder=2, break_tolerance=10, mask=tmask
+        )
+        # dlc = lc.copy()
+        # dlc.flux = detrend(lc.flux, bp=len(lc.flux)//2)+1
+
         ls = LombScargle(dlc.time[~tmask], dlc.flux[~tmask])
         frequencies, powers = ls.autopower(
             minimum_frequency=1.0 / Prot_max, maximum_frequency=2.0  # 0.5 day
