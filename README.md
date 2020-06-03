@@ -8,7 +8,7 @@ Note that [chronos](https://github.com/jpdeleon/chronos) is a dependency.
 
 
 ## Run at Google colab
-<a href="https://colab.research.google.com/github/jpdeleon/tql/blob/master/notebooks/examples-QL.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+<a href="https://colab.research.google.com/github/jpdeleon/tql/blob/master/notebooks/examples.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
 ## Usage
 ```shell
@@ -73,17 +73,17 @@ $ tql -toi 125 -v
 
 The generated figure shows 9 panels (see plot below):
 * top row
- - left: background-subtracted, PLD-corrected lightcurve and trend
- - middle: lomb-scargle periodogram
- - right: phase-folded at peak stellar rotation period (if any)
+  - left: background-subtracted, PLD-corrected lightcurve and trend
+  - middle: lomb-scargle periodogram
+  - right: phase-folded at peak stellar rotation period (if any)
 * middle row
- - left: flattened lightcurve and transit (determined from TLS on the right)
- - middle: TLS periodogram
- - right: phase-folded lightcurve at orbital period
+  - left: flattened lightcurve and transit (determined from TLS on the right)
+  - middle: TLS periodogram
+  - right: phase-folded lightcurve at orbital period
 * bottom row
- - left: phase-folded lightcurve of odd and even transits with transit depth reference
- - middle: tpf with overlaid TESS aperture and annotated gaia sources
- - right: summary info
+  - left: phase-folded lightcurve of odd and even transits with transit depth reference
+  - middle: tpf with overlaid TESS aperture and annotated gaia sources
+  - right: summary info
 ```
 $ tql -tic 52368076 -v -s (uses pdcsap by default)
 $ tql -toi 125.01 -v  -s -lc sap
