@@ -30,7 +30,6 @@ setup(
         "Programming Language :: Python",
     ],
     dependency_links=[
-        "http://github.com/jpdeleon/chronos/tarball/master#egg=chronos",
-        "wotan",
+        "http://github.com/jpdeleon/chronos/tarball/master#egg=chronos"
     ],
 )
