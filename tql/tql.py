@@ -238,7 +238,7 @@ def plot_tql(
 
         # +++++++++++++++++++++ax: Raw + trend
         ax = axs[0]
-        lc = lc.normalize().remove_nans()  # .remove_outliers(sigma=5)
+        lc = lc.normalize().remove_nans().remove_outliers(sigma=7)
         flat, trend = lc.flatten(
             window_length=101, return_trend=True
         )  # flat and trend here are just place-holder
@@ -626,15 +626,19 @@ def plot_tql(
         ax.axis("off")
 
         if l.toiid is not None:
-            fig.suptitle(f"TOI {l.toiid} | TIC {l.ticid} (sector {l.sector})")
+            title = f"TOI {l.toiid} | TIC {l.ticid} (sector {l.sector})"
         else:
-            fig.suptitle(f"TIC {l.ticid} (sector {l.sector})")
+            title = f"TIC {l.ticid} (sector {l.sector})"
         # fig.tight_layout()
         if find_cluster:
-            is_gaiaid_in_cluster(
-                l.gaiaid, catalog_name="Bouma2019", verbose=True
-            )
-            # function prints output
+            if is_gaiaid_in_cluster(
+                l.gaiaid, catalog_name="CantatGaudin2020", verbose=True
+            ):
+                # function prints output
+                cluster_params = l.get_cluster_membership()
+                # cluster_age = l.get_cluster_age(self, cluster_name=None)
+                title += f" in {cluster_params.Cluster}"  # ({cluster_age})
+        fig.suptitle(title)
         end = timer()
         msg = ""
         if savefig:

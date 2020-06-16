@@ -156,7 +156,7 @@ parser.add_argument(
     "-f",
     "--find_cluster",
     action="store_true",
-    help="find if target in cluster",
+    help="find if target is in cluster (default=False)",
     default=False,
 )
 parser.add_argument(
@@ -171,6 +171,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "-v", "--verbose", action="store_true", help="show details", default=False
+)
+parser.add_argument(
+    "--redo", action="store_true", help="overwrite", default=False
 )
 # prints help if no argument supplied
 args = parser.parse_args(None if sys.argv[1:] else ["-h"])
@@ -207,7 +210,7 @@ if __name__ == "__main__":
         savetls=args.save,
         outdir=args.outdir,
         verbose=args.verbose,
-        clobber=False,
+        clobber=args.redo,
     )
     if not args.save:
         pl.show()
