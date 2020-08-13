@@ -306,8 +306,8 @@ def plot_tql(
         if fraction % 2 == 0:
             fraction += 1  # add 1 if even
         dlc = lc.flatten(
-            window_length=fraction, polyorder=2, break_tolerance=10, mask=tmask
-        )
+            window_length=fraction, polyorder=1, break_tolerance=10, mask=tmask
+        ).normalize()
         # dlc = lc.copy()
         # dlc.flux = detrend(lc.flux, bp=len(lc.flux)//2)+1
 
@@ -358,8 +358,8 @@ def plot_tql(
         # plot phase-folded lc with masked transits
         a = ax.scatter(
             (phase * best_period)[~tmask],
-            flux[~tmask],
-            c=time[~tmask],
+            dlc.flux[~tmask],
+            c=dlc.time[~tmask],
             label=label,
             cmap=pl.get_cmap("Blues"),
         )
@@ -641,10 +641,10 @@ def plot_tql(
         fig.suptitle(title)
         end = timer()
         msg = ""
+        fp = os.path.join(
+            outdir, f"{l.target_name.replace(' ','')}_s{l.sector}_{lctype}_{cadence[0]}c"
+        )
         if savefig:
-            fp = os.path.join(
-                outdir, f"tic{l.ticid}_s{l.sector}_{lctype}_{cadence[0]}c"
-            )
             fig.savefig(fp + ".png", bbox_inches="tight")
             msg += f"Saved: {fp}.png\n"
             if run_gls:
