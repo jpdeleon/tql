@@ -531,7 +531,7 @@ def plot_tql(
         # add gls_results
         tls_results["Prot_gls"] = (gls.hpstat["P"], gls.hpstat["e_P"])
         tls_results["amp_gls"] = (gls.hpstat["amp"], gls.hpstat["e_amp"])
-
+        # use TIC star params by default else use starhorse
         tp, gp = l.tic_params, l.gaia_params
         # query starhorse star params
         vizier = l.query_vizier(verbose=False)
@@ -541,26 +541,26 @@ def plot_tql(
             else None
         )
         Mstar = (
-            "nan"
-            if starhorse is None
+            tp["mass"]
+            if str(tp["mass"])!='nan'
             else starhorse["mass50"].quantity[0].value
         )
         Teff = (
-            "nan"
-            if starhorse is None
+            int(tp["Teff"])
+            if str(tp["Teff"])!='nan'
             else starhorse["teff50"].quantity[0].value
         )
         logg = (
-            "nan"
-            if starhorse is None
+            tp["logg"]
+            if str(tp["logg"])!='nan'
             else starhorse["logg50"].quantity[0].value
         )
         met = (
-            "nan"
-            if starhorse is None
+            tp["MH"]
+            if str(tp["MH"])!='nan' 
             else starhorse["met50"].quantity[0].value
         )
-        if (tp["rad"] is None) or (str(tp["rad"]) == "nan"):
+        if np.isnan(tp["rad"]) or (str(tp["rad"]) == "nan"):
             # use gaia Rstar if TIC Rstar is nan
             Rstar = l.gaia_params.radius_val
             siglo = l.gaia_params.radius_percentile_lower
@@ -568,12 +568,11 @@ def plot_tql(
             Rstar_err = get_err_quadrature(Rstar - siglo, sighi - Rstar)
         else:
             Rstar, Rstar_err = tp["rad"], tp["e_rad"]
-        # teff = "nan" if str(tp["Teff"]).lower() == "nan" else int(tp["Teff"])
         eteff = (
             "nan" if str(tp["e_Teff"]).lower() == "nan" else int(tp["e_Teff"])
         )
-        logg = tp["logg"] if logg == "nan" else logg
-        met = tp["MH"] if met == "nan" else met
+        #logg = tp["logg"] if logg == "nan" else logg
+        #met = tp["MH"] if met == "nan" else met
 
         ax = axs[8]
         Rp = tls_results["rp_rs"] * Rstar * u.Rsun.to(u.Rearth)
@@ -603,25 +602,25 @@ def plot_tql(
         msg += "Stellar Properties\n"
         msg += "-" * 30 + "\n"
         msg += f"TIC ID={l.ticid}" + " " * 5
-        msg += f"Tmag={tp['Tmag']:.2f}\n"
+        msg += f"Tmag={tp.Tmag:.2f}\n"
         msg += f"Gaia DR2 ID={l.gaiaid}\n"
         msg += f"Parallax={gp.parallax:.4f} mas\n"
         msg += f"GOF_AL={gp.astrometric_gof_al:.2f} (hints binarity if >20)\n"
         D = gp.astrometric_excess_noise_sig
-        msg += f"astrometric excess noise sig={D:.2f} (hints binarity if >5)\n"
+        msg += f"astro. excess noise sig={D:.2f} (hints binarity if >5)\n"
         msg += (
             f"Rstar={Rstar:.2f}+/-{Rstar_err:.2f} " + r"R$_{\odot}$" + " " * 5
         )
         msg += (
-            f"Mstar={Mstar:.2f}+/-{tp['e_mass']:.2f} " + r"M$_{\odot}$" + "\n"
+            f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + "\n"
         )
         msg += f"Teff={Teff}+/-{eteff} K" + " " * 5
-        msg += f"logg={logg:.2f}+/-{tp['e_logg']:.2f} cgs\n"
-        msg += f"met={met:.2f}+/-{tp['e_MH']:.2f} dex\n"
+        msg += f"logg={logg:.2f}+/-{tp.e_logg:.2f} cgs\n"
+        msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex\n"
         # spectype = star.get_spectral_type()
         # msg += f"SpT: {spectype}\n"
-        msg += r"$\rho$" + f"star={tp['rho']:.2f}+/-{tp['e_rho']:.2f} gcc\n"
-        msg += f"Contamination ratio={l.contratio:.2f}% (TIC={tp['contratio']:.2f}%)\n"
+        msg += r"$\rho$" + f"star={tp.rho:.2f}+/-{tp.e_rho:.2f} gcc\n"
+        msg += f"Contamination ratio={l.contratio:.2f}% (TIC={tp.contratio:.2f}%)\n"
         ax.text(0, 0, msg, fontsize=10)
         ax.axis("off")
 
