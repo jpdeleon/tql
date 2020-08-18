@@ -542,22 +542,22 @@ def plot_tql(
         )
         Mstar = (
             tp["mass"]
-            if str(tp["mass"])!='nan'
+            if str(tp["mass"]) != "nan"
             else starhorse["mass50"].quantity[0].value
         )
         Teff = (
             int(tp["Teff"])
-            if str(tp["Teff"])!='nan'
+            if str(tp["Teff"]) != "nan"
             else starhorse["teff50"].quantity[0].value
         )
         logg = (
             tp["logg"]
-            if str(tp["logg"])!='nan'
+            if str(tp["logg"]) != "nan"
             else starhorse["logg50"].quantity[0].value
         )
         met = (
             tp["MH"]
-            if str(tp["MH"])!='nan' 
+            if str(tp["MH"]) != "nan"
             else starhorse["met50"].quantity[0].value
         )
         if np.isnan(tp["rad"]) or (str(tp["rad"]) == "nan"):
@@ -571,8 +571,8 @@ def plot_tql(
         eteff = (
             "nan" if str(tp["e_Teff"]).lower() == "nan" else int(tp["e_Teff"])
         )
-        #logg = tp["logg"] if logg == "nan" else logg
-        #met = tp["MH"] if met == "nan" else met
+        # logg = tp["logg"] if logg == "nan" else logg
+        # met = tp["MH"] if met == "nan" else met
 
         ax = axs[8]
         Rp = tls_results["rp_rs"] * Rstar * u.Rsun.to(u.Rearth)
@@ -611,9 +611,7 @@ def plot_tql(
         msg += (
             f"Rstar={Rstar:.2f}+/-{Rstar_err:.2f} " + r"R$_{\odot}$" + " " * 5
         )
-        msg += (
-            f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + "\n"
-        )
+        msg += f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + "\n"
         msg += f"Teff={Teff}+/-{eteff} K" + " " * 5
         msg += f"logg={logg:.2f}+/-{tp.e_logg:.2f} cgs\n"
         msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex\n"
@@ -640,8 +638,12 @@ def plot_tql(
         fig.suptitle(title)
         end = timer()
         msg = ""
+        if (l.ticid is not None) & (l.target_name[0] == "("):
+            # replace e.g. target_name = (ra, dec) with ticid
+            l.target_name = f"TIC {l.ticid}"
         fp = os.path.join(
-            outdir, f"{l.target_name.replace(' ','')}_s{l.sector}_{lctype}_{cadence[0]}c"
+            outdir,
+            f"{l.target_name.replace(' ','')}_s{l.sector}_{lctype}_{cadence[0]}c",
         )
         if savefig:
             fig.savefig(fp + ".png", bbox_inches="tight")
