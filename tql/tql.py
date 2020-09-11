@@ -29,7 +29,6 @@ from chronos.utils import (
     get_fluxes_within_mask,
     get_transit_mask,
     is_gaiaid_in_cluster,
-    get_err_quadrature,
 )
 
 
@@ -529,6 +528,7 @@ def plot_tql(
         tls_results["sector"] = l.sector
         tls_results["cont_ratio"] = l.contratio
         # add gls_results
+        tls_results["power_gls"] = (gls.power.max(), gls.power.std())
         tls_results["Prot_gls"] = (gls.hpstat["P"], gls.hpstat["e_P"])
         tls_results["amp_gls"] = (gls.hpstat["amp"], gls.hpstat["e_amp"])
         # use TIC star params by default else use starhorse
@@ -565,7 +565,7 @@ def plot_tql(
             Rstar = l.gaia_params.radius_val
             siglo = l.gaia_params.radius_percentile_lower
             sighi = l.gaia_params.radius_percentile_upper
-            Rstar_err = get_err_quadrature(Rstar - siglo, sighi - Rstar)
+            Rstar_err = np.hypot(Rstar - siglo, sighi - Rstar)
         else:
             Rstar, Rstar_err = tp["rad"], tp["e_rad"]
         eteff = (

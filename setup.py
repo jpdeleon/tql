@@ -20,7 +20,7 @@ setup(
     description="TESS QuickLook plot generator",
     long_description=rd("README.md") + "\n\n" + "---------\n\n",
     # package_dir={"tql": "tql"},
-    scripts=["scripts/tql", "scripts/rank_tls"],
+    scripts=["scripts/tql", "scripts/rank_tls", "scripts/rank_gls"],
     # include_package_data=True,
     keywords=["TESS", "exoplanets", "stars"],
     classifiers=[

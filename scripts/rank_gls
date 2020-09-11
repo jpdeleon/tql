@@ -6,9 +6,7 @@ import pandas as pd
 from tqdm import tqdm
 import argparse
 
-parser = argparse.ArgumentParser(
-    description="Rank planet candidates by SDE from TLS."
-)
+parser = argparse.ArgumentParser(description="Rank rotation signal by Lomb-Scargle power from GLS.")
 parser.add_argument("indir", type=str)
 args = parser.parse_args()
 
@@ -20,10 +18,10 @@ assert len(files) > 0, "no *.h5 files found!"
 sdes = {}
 for file in tqdm(files):
     data = dd.io.load(file)
-    sdes[file] = data["SDE"]
+    sdes[file] = data["power_gls"]
 
 # sort by sde
-s = pd.Series(sdes, name="sde").sort_values(ascending=False)
-fp = indir + "_sde.txt"
+s = pd.Series(sdes, name="gls_power").sort_values(ascending=False)
+fp = indir + "_gls.txt"
 s.to_csv(fp)
 print(f"Saved: {fp}")
