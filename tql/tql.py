@@ -22,6 +22,7 @@ import deepdish as dd
 
 from chronos.gls import Gls
 from chronos.lightcurve import ShortCadence, LongCadence
+from chronos.qlp import QLP
 from chronos.plot import plot_gaia_sources_on_tpf
 from chronos.constants import TESS_TIME_OFFSET
 from chronos.utils import (
@@ -41,7 +42,7 @@ def plot_tql(
     sector=None,
     search_radius=3,
     cadence="short",
-    lctype=None,  # custom, pdcsap, sap, custom
+    lctype=None,  # custom, pdcsap, sap, custom, qlp
     sap_mask=None,
     aper_radius=1,
     threshold_sigma=5,
@@ -73,7 +74,7 @@ def plot_tql(
     cadence : str
         short, long
     lctype : str
-        short=(pdcsap, sap, custom); long=(custom, cdips)
+        short=(pdcsap, sap, custom); long=(custom, cdips, pathos, qlp)
     sap_mask : str
         short=pipeline; long=square,round,threshold,percentile
     aper_radius : int
@@ -138,10 +139,9 @@ def plot_tql(
         if cadence == "long":
             sap_mask = "square" if sap_mask is None else sap_mask
             lctype = "custom" if lctype is None else lctype
-            lctypes = ["custom", "cdips", "pathos"]
+            lctypes = ["custom", "cdips", "pathos", "qlp"]
             errmsg = f"{lctype} is not available in cadence=long"
             assert lctype in lctypes, errmsg
-            alpha = 0.5
             lightcurve = LongCadence(
                 gaiaDR2id=gaiaid,
                 toiid=toiid,
@@ -161,6 +161,7 @@ def plot_tql(
                 verbose=verbose,
                 clobber=clobber,
             )
+            alpha = 0.5
             bin_hr = 4 if bin_hr is None else bin_hr
             # cad = np.median(np.diff(time))
             cad = 30 / 60 / 24
@@ -225,8 +226,11 @@ def plot_tql(
             #  just downloads fits file
             lc = l.get_pathos_lc()
             l.aper_mask = l.pathos.get_aper_mask_pathos()
+        elif lctype == "qlp":
+            lc = l.get_qlp_lc()
+            l.aper_mask = l.qlp.get_aper_mask_qlp()
         else:
-            errmsg = "use lctype=[custom,sap,pdcsap,cdips,pathos]"
+            errmsg = "use lctype=[custom,sap,pdcsap,cdips,pathos,qlp]"
             raise ValueError(errmsg)
 
         if (outdir is not None) & (not os.path.exists(outdir)):

@@ -4,8 +4,8 @@
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 TESS Quick Look plot generator.
+`tql` handles TESS short cadence (SPOC pipeline) and long cadence ([QLP](http://archive.stsci.edu/hlsp/qlp), [CDIPS](http://archive.stsci.edu/hlsp/cdips), [PATHOS](http://archive.stsci.edu/hlsp/qlp), and custom) light curves.
 Note that [chronos](https://github.com/jpdeleon/chronos) is a dependency.
-
 
 ## Run at Google colab
 <a href="https://colab.research.google.com/github/jpdeleon/tql/blob/master/notebooks/examples.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
@@ -24,6 +24,8 @@ optional arguments:
                         TESS sector
   -c {long,short}, -cadence {long,short}
                         30-min long or 2-min short (default)
+  - p {custom, qlp}, -pipeline {custom, qlp}
+                        custom or QLP (Huang+2020)
   -sr SEARCH_RADIUS, -search_radius SEARCH_RADIUS
                         search radius in arcsec (default=3)
   -lc {pdcsap,sap,custom,cdips}, -lctype {pdcsap,sap,custom,cdips}
@@ -88,13 +90,16 @@ The generated figure shows 9 panels (see plot below):
 $ tql -tic 52368076 -v -s (uses pdcsap by default)
 $ tql -toi 125.01 -v  -s -lc sap
 $ tql -toi 125.01 -v -s -sec 2 (specify sector)
-$ tql -toi 125 -v  -s -c long (long cadence)
+$ tql -toi 125 -v  -s -c long (long cadence, custom by default)
 $ tql -toi 125.01 -v -a pipeline (default aperture)
 $ tql -toi 125.01 -v -a round -r 1 (round aperture 1 pix in radius)
 $ tql -toi 125.01 -v -a square -r 2 (square aperture 2 pix in radius)
 $ tql -toi 125.01 -v -a percentile -perc 90
 $ tql -toi 125.01 -v -a threshold -t 5
 $ tql -toi 125.01 -v -a threshold -g (gls periodogram)
+$ tql -toi 125 -v  -s -c long -lc qlp (Quick Look Pipeline, [Huang+2020](http://archive.stsci.edu/hlsp/qlp))
+$ tql -toi 125 -v  -s -c long -lc cdips (CDIPS Pipeline, [Huang+2020](http://archive.stsci.edu/hlsp/cdips))
+$ tql -toi 125 -v  -s -c long -lc pathos (PATHOS Pipeline, [Huang+2020](http://archive.stsci.edu/hlsp/pathos))
 ```
 
 ## Advanced usage
