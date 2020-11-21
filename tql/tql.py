@@ -4,17 +4,21 @@ import os
 from time import time as timer
 import traceback
 import argparse
+import pdb
 
 # Import modules
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as pl
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from scipy.signal import detrend
 import astropy.units as u
 from astropy.stats import sigma_clip
 from astropy.coordinates import SkyCoord
 from astropy.timeseries import LombScargle
+from astropy.wcs import WCS
+from astroquery.skyview import SkyView
 from wotan import flatten
 from wotan import t14 as estimate_transit_duration
 from transitleastsquares import transitleastsquares as tls
@@ -23,14 +27,27 @@ import deepdish as dd
 from chronos.gls import Gls
 from chronos.lightcurve import ShortCadence, LongCadence
 from chronos.qlp import QLP
-from chronos.plot import plot_gaia_sources_on_tpf
-from chronos.constants import TESS_TIME_OFFSET
+from chronos.plot import plot_gaia_sources_on_tpf, plot_gaia_sources_on_survey
+from chronos.constants import TESS_TIME_OFFSET, TESS_pix_scale
 from chronos.utils import (
     parse_aperture_mask,
     get_fluxes_within_mask,
     get_transit_mask,
     is_gaiaid_in_cluster,
 )
+
+size = 16
+params = {
+    "legend.fontsize": "medium",
+    "figure.figsize": (16, 13),
+    "axes.labelsize": size,
+    "axes.titlesize": size,
+    "figure.titlesize": size,
+    "xtick.labelsize": size * 0.75,
+    "ytick.labelsize": size * 0.75,
+    "axes.titlepad": 25,
+}
+pl.rcParams.update(params)
 
 
 def plot_tql(
@@ -195,7 +212,7 @@ def plot_tql(
         else:
             raise ValueError("Use cadence=(long, short).")
         if verbose:
-            print(f"Analyzing {cadence} cadence data with {sap_mask} mask")
+            print(f"Analyzing {cadence} cadence data with {sap_mask} mask.")
         l = lightcurve
         if l.gaia_params is None:
             _ = l.query_gaia_dr2_catalog(return_nearest_xmatch=True)
@@ -236,11 +253,13 @@ def plot_tql(
         if (outdir is not None) & (not os.path.exists(outdir)):
             os.makedirs(outdir)
 
-        fig, axs = pl.subplots(3, 3, figsize=(15, 12), constrained_layout=True)
-        axs = axs.flatten()
+        # fig, axs = pl.subplots(3, 3, figsize=(15, 12), constrained_layout=True)
+        # axs = axs.flatten()
+        fig = pl.figure()
 
         # +++++++++++++++++++++ax: Raw + trend
-        ax = axs[0]
+        # ax = axs[0]
+        ax = fig.add_subplot(3, 3, 1)
         lc = lc.normalize().remove_nans().remove_outliers(sigma=7)
         flat, trend = lc.flatten(
             window_length=101, return_trend=True
@@ -288,7 +307,8 @@ def plot_tql(
         trend.plot(ax=ax, label="trend", lw=1, c="r")
 
         # +++++++++++++++++++++ax2 Lomb-scargle periodogram
-        ax = axs[1]
+        # ax = axs[1]
+        ax = fig.add_subplot(3, 3, 2)
         baseline = int(time[-1] - time[0])
         Prot_max = baseline / 2
 
@@ -339,11 +359,12 @@ def plot_tql(
         gls = Gls(data, Pbeg=0.1, verbose=verbose)
         if run_gls:
             if verbose:
-                print("Running GLS pipeline")
+                print("Running GLS pipeline...")
             # show plot if not saved
             _ = gls.plot(block=~savefig, figsize=(10, 8))
         # +++++++++++++++++++++ax phase-folded at rotation period + sinusoidal model
-        ax = axs[2]
+        # ax = axs[2]
+        ax = fig.add_subplot(3, 3, 3)
         offset = 0.5
         t_fit = np.linspace(0, 1, 100) - offset
         y_fit = ls.model(t_fit * best_period - best_period / 2, best_freq)
@@ -366,15 +387,18 @@ def plot_tql(
             label=label,
             cmap=pl.get_cmap("Blues"),
         )
-        pl.colorbar(a, ax=ax, label=f"Time [BTJD]")
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        fig.add_axes(cax)
+        fig.colorbar(a, ax=ax, cax=cax, label=f"Time [BTJD]")
         ax.legend()
         ax.set_xlim(-best_period / 2, best_period / 2)
         ax.set_ylabel("Normalized Flux")
         ax.set_xlabel("Phase [days]")
-        # fig.suptitle(title)
 
         # +++++++++++++++++++++ax5: TLS periodogram
-        ax = axs[4]
+        # ax = axs[4]
+        ax = fig.add_subplot(3, 3, 5)
         period_min = 0.1 if Porb_min is None else Porb_min
         period_max = baseline / 2 if Porb_max is None else Porb_max
         if lctype == "pathos":
@@ -418,7 +442,8 @@ def plot_tql(
         ax.legend(title="Orbital period [d]")
 
         # +++++++++++++++++++++++ax4 : flattened lc
-        ax = axs[3]
+        # ax = axs[3]
+        ax = fig.add_subplot(3, 3, 4)
         flat.scatter(ax=ax, label="flat", zorder=1)
         # binned phase folded lc
         nbins = int(round(bin_hr / 24 / cad))
@@ -429,7 +454,8 @@ def plot_tql(
         flat[tmask].scatter(ax=ax, label="transit", c="r", alpha=0.5, zorder=1)
 
         # +++++++++++++++++++++ax6: phase-folded at orbital period
-        ax = axs[5]
+        # ax = axs[5]
+        ax = fig.add_subplot(3, 3, 6)
         # binned phase folded lc
         fold = flat.fold(period=tls_results.period, t0=tls_results.T0)
         fold.scatter(
@@ -454,7 +480,8 @@ def plot_tql(
         ax.legend()
 
         # +++++++++++++++++++++ax: odd-even
-        ax = axs[6]
+        # ax = axs[6]
+        ax = fig.add_subplot(3, 3, 7)
         yline = tls_results.depth
         fold.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
         fold[fold.even_mask].bin(nbins).scatter(
@@ -476,7 +503,7 @@ def plot_tql(
         ax.legend()
 
         # +++++++++++++++++++++ax7: tpf
-        ax = axs[7]
+        # ax = axs[7]
         if cadence == "short":
             if l.tpf is None:
                 # e.g. pdcsap, sap
@@ -495,20 +522,59 @@ def plot_tql(
         if (l.gaia_sources is None) or (nearby_gaia_radius != 120):
             _ = l.query_gaia_dr2_catalog(radius=nearby_gaia_radius)
         # _ = plot_orientation(tpf, ax)
-        _ = plot_gaia_sources_on_tpf(
-            tpf=tpf,
-            target_gaiaid=l.gaiaid,
-            gaia_sources=l.gaia_sources,
-            kmax=1,
-            depth=1 - tls_results.depth,
-            sap_mask=l.sap_mask,
-            aper_radius=l.aper_radius,
-            threshold_sigma=l.threshold_sigma,
-            percentile=l.percentile,
-            cmap=tpf_cmap,
-            dmag_limit=8,
-            ax=ax,
-        )
+        survey = "DSS2 Red"
+        try:
+            ny, nx = tpf.flux.shape[1:]
+            diag = np.sqrt(nx ** 2 + ny ** 2)
+            fov_rad = (0.4 * diag * TESS_pix_scale).to(u.arcmin)
+            position = l.target_coord.icrs.to_string()
+            results = SkyView.get_images(
+                position=position,
+                coordinates="icrs",
+                survey=survey,
+                radius=fov_rad,
+                grid=True,
+            )
+            if len(results) > 0:
+                hdu = results[0][0]
+            else:
+                errmsg = (
+                    "SkyView returned empty result. Try a different survey."
+                )
+                raise ValueError(errmsg)
+            ax = fig.add_subplot(3, 3, 8, projection=WCS(hdu.header))
+            _ = plot_gaia_sources_on_survey(
+                tpf=tpf,
+                target_gaiaid=l.gaiaid,
+                gaia_sources=l.gaia_sources,
+                kmax=1,
+                depth=1 - tls_results.depth,
+                sap_mask=l.sap_mask,
+                aper_radius=l.aper_radius,
+                threshold_sigma=l.threshold_sigma,
+                percentile=l.percentile,
+                survey=survey,
+                verbose=verbose,
+                ax=ax,
+            )
+        except Exception as e:
+            print(f"{survey} image query failed.\n{e}")
+            ax = fig.add_subplot(3, 3, 8)
+            _ = plot_gaia_sources_on_tpf(
+                tpf=tpf,
+                target_gaiaid=l.gaiaid,
+                gaia_sources=l.gaia_sources,
+                kmax=1,
+                depth=1 - tls_results.depth,
+                sap_mask=l.sap_mask,
+                aper_radius=l.aper_radius,
+                threshold_sigma=l.threshold_sigma,
+                percentile=l.percentile,
+                cmap=tpf_cmap,
+                dmag_limit=8,
+                verbose=verbose,
+                ax=ax,
+            )
 
         if l.contratio is None:
             # also computed in make_custom_lc()
@@ -538,7 +604,7 @@ def plot_tql(
         # use TIC star params by default else use starhorse
         tp, gp = l.tic_params, l.gaia_params
         # query starhorse star params
-        vizier = l.query_vizier(verbose=False)
+        vizier = l.query_vizier(verbose=False, radius=search_radius)
         starhorse = (
             vizier["I/349/starhorse"]
             if "I/349/starhorse" in vizier.keys()
@@ -548,21 +614,29 @@ def plot_tql(
             tp["mass"]
             if str(tp["mass"]) != "nan"
             else starhorse["mass50"].quantity[0].value
+            if starhorse is not None
+            else tp["mass"]
         )
         Teff = (
             int(tp["Teff"])
             if str(tp["Teff"]) != "nan"
             else starhorse["teff50"].quantity[0].value
+            if starhorse is not None
+            else tp["Teff"]
         )
         logg = (
             tp["logg"]
             if str(tp["logg"]) != "nan"
             else starhorse["logg50"].quantity[0].value
+            if starhorse is not None
+            else tp["logg"]
         )
         met = (
             tp["MH"]
             if str(tp["MH"]) != "nan"
             else starhorse["met50"].quantity[0].value
+            if starhorse is not None
+            else tp["MH"]
         )
         if np.isnan(tp["rad"]) or (str(tp["rad"]) == "nan"):
             # use gaia Rstar if TIC Rstar is nan
@@ -578,11 +652,12 @@ def plot_tql(
         # logg = tp["logg"] if logg == "nan" else logg
         # met = tp["MH"] if met == "nan" else met
 
-        ax = axs[8]
+        # ax = axs[8]
+        ax = fig.add_subplot(3, 3, 9)
         Rp = tls_results["rp_rs"] * Rstar * u.Rsun.to(u.Rearth)
         # np.sqrt(tls_results["depth"]*(1+l.contratio))
         Rp_true = Rp * np.sqrt(1 + l.contratio)
-        msg = "Candidate Properties\n"
+        msg = "\nCandidate Properties\n"
         msg += "-" * 30 + "\n"
         # secs = ','.join(map(str, l.all_sectors))
         if l.mission == "tess":
@@ -630,7 +705,7 @@ def plot_tql(
             title = f"TOI {l.toiid} | TIC {l.ticid} (sector {l.sector})"
         else:
             title = f"TIC {l.ticid} (sector {l.sector})"
-        # fig.tight_layout()
+
         if find_cluster:
             if is_gaiaid_in_cluster(
                 l.gaiaid, catalog_name="CantatGaudin2020", verbose=True
@@ -639,7 +714,7 @@ def plot_tql(
                 cluster_params = l.get_cluster_membership()
                 # cluster_age = l.get_cluster_age(self, cluster_name=None)
                 title += f" in {cluster_params.Cluster}"  # ({cluster_age})
-        fig.suptitle(title)
+        fig.suptitle(title, y=1.01)
         end = timer()
         msg = ""
         if (l.ticid is not None) & (l.target_name[0] == "("):
@@ -649,6 +724,7 @@ def plot_tql(
             outdir,
             f"{l.target_name.replace(' ','')}_s{l.sector}_{lctype}_{cadence[0]}c",
         )
+        fig.tight_layout()  # (pad=0.5, w_pad=0.1, h_pad=0.1)
         if savefig:
             fig.savefig(fp + ".png", bbox_inches="tight")
             msg += f"Saved: {fp}.png\n"
@@ -673,11 +749,13 @@ def plot_tql(
         # Extract unformatter stack traces as tuples
         trace_back = traceback.extract_tb(ex_traceback)
 
-        print(f"Exception type: {ex_type.__name__}")
+        print(f"\nException type: {ex_type.__name__}")
         print(f"Exception message: {ex_value}")
+        # pdb.post_mortem(ex_traceback)
         # Format stacktrace
         for trace in trace_back:
             print(f"Line : {trace[1]}")
             print(f"Func : {trace[2]}")
             # print(f"Message : {trace[3]}")
             print(f"File : {trace[0]}")
+        # traceback.print_exc()

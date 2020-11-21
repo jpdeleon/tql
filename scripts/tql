@@ -15,7 +15,7 @@ parser.add_argument("-tic", type=int, help="TIC ID", default=None)
 parser.add_argument(
     "-coords",
     type=str,
-    help="08:09:10 -05:04:23 or 22.5 -12.56",
+    help="e.g. '08:09:10 -05:04:23' or '22.5 -12.56'",
     nargs=2,
     default=None,
 )

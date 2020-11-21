@@ -97,9 +97,9 @@ $ tql -toi 125.01 -v -a square -r 2 (square aperture 2 pix in radius)
 $ tql -toi 125.01 -v -a percentile -perc 90
 $ tql -toi 125.01 -v -a threshold -t 5
 $ tql -toi 125.01 -v -a threshold -g (gls periodogram)
-$ tql -toi 125 -v  -s -c long -lc qlp (Quick Look Pipeline, [Huang+2020](http://archive.stsci.edu/hlsp/qlp))
-$ tql -toi 125 -v  -s -c long -lc cdips (CDIPS Pipeline, [Huang+2020](http://archive.stsci.edu/hlsp/cdips))
-$ tql -toi 125 -v  -s -c long -lc pathos (PATHOS Pipeline, [Huang+2020](http://archive.stsci.edu/hlsp/pathos))
+$ tql -toi 125 -v  -s -c long -lc qlp (Quick Look Pipeline)
+$ tql -toi 125 -v  -s -c long -lc cdips (CDIPS Pipeline)
+$ tql -toi 125 -v  -s -c long -lc pathos (PATHOS Pipeline)
 ```
 
 ## Advanced usage
