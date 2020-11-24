@@ -82,6 +82,7 @@ def plot_tql(
     nearby_gaia_radius=120,  # arcsec
     bin_hr=None,
     tpf_cmap="viridis",
+    use_archival_image=False,
     verbose=True,
     clobber=False,
 ):
@@ -522,43 +523,46 @@ def plot_tql(
         if (l.gaia_sources is None) or (nearby_gaia_radius != 120):
             _ = l.query_gaia_dr2_catalog(radius=nearby_gaia_radius)
         # _ = plot_orientation(tpf, ax)
-        survey = "DSS2 Red"
-        try:
-            ny, nx = tpf.flux.shape[1:]
-            diag = np.sqrt(nx ** 2 + ny ** 2)
-            fov_rad = (0.4 * diag * TESS_pix_scale).to(u.arcmin)
-            position = l.target_coord.icrs.to_string()
-            results = SkyView.get_images(
-                position=position,
-                coordinates="icrs",
-                survey=survey,
-                radius=fov_rad,
-                grid=True,
-            )
-            if len(results) > 0:
-                hdu = results[0][0]
-            else:
-                errmsg = (
-                    "SkyView returned empty result. Try a different survey."
+        if use_archival_image:
+            try:
+                survey = "DSS2 Red"
+                # query image to get projection
+                ny, nx = tpf.flux.shape[1:]
+                diag = np.sqrt(nx ** 2 + ny ** 2)
+                fov_rad = (0.4 * diag * TESS_pix_scale).to(u.arcmin)
+                position = l.target_coord.icrs.to_string()
+                results = SkyView.get_images(
+                    position=position,
+                    coordinates="icrs",
+                    survey=survey,
+                    radius=fov_rad,
+                    grid=True,
                 )
-                raise ValueError(errmsg)
-            ax = fig.add_subplot(3, 3, 8, projection=WCS(hdu.header))
-            _ = plot_gaia_sources_on_survey(
-                tpf=tpf,
-                target_gaiaid=l.gaiaid,
-                gaia_sources=l.gaia_sources,
-                kmax=1,
-                depth=1 - tls_results.depth,
-                sap_mask=l.sap_mask,
-                aper_radius=l.aper_radius,
-                threshold_sigma=l.threshold_sigma,
-                percentile=l.percentile,
-                survey=survey,
-                verbose=verbose,
-                ax=ax,
-            )
-        except Exception as e:
-            print(f"{survey} image query failed.\n{e}")
+                if len(results) > 0:
+                    hdu = results[0][0]
+                else:
+                    errmsg = "SkyView returned empty result. Try a different survey."
+                    raise ValueError(errmsg)
+                # plot gaia sources on archival image
+                ax = fig.add_subplot(3, 3, 8, projection=WCS(hdu.header))
+                _ = plot_gaia_sources_on_survey(
+                    tpf=tpf,
+                    target_gaiaid=l.gaiaid,
+                    gaia_sources=l.gaia_sources,
+                    kmax=1,
+                    depth=1 - tls_results.depth,
+                    sap_mask=l.sap_mask,
+                    aper_radius=l.aper_radius,
+                    threshold_sigma=l.threshold_sigma,
+                    percentile=l.percentile,
+                    survey=survey,
+                    verbose=verbose,
+                    ax=ax,
+                )
+            except Exception as e:
+                print(f"{survey} image query failed.\n{e}")
+        else:
+            # plot gaia sources on tpf
             ax = fig.add_subplot(3, 3, 8)
             _ = plot_gaia_sources_on_tpf(
                 tpf=tpf,

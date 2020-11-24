@@ -175,6 +175,13 @@ parser.add_argument(
 parser.add_argument(
     "--redo", action="store_true", help="overwrite", default=False
 )
+parser.add_argument(
+    "-img",
+    "--use_archival_image",
+    action="store_true",
+    help="plot gaia sources on archival image instead of tpf",
+    default=False,
+)
 # prints help if no argument supplied
 args = parser.parse_args(None if sys.argv[1:] else ["-h"])
 
@@ -205,6 +212,7 @@ if __name__ == "__main__":
         edge_cutoff=args.edge_cutoff,
         find_cluster=args.find_cluster,
         nearby_gaia_radius=args.nearby_gaia_radius,
+        use_archival_image=args.use_archival_image,
         run_gls=args.gls,
         savefig=args.save,
         savetls=args.save,
