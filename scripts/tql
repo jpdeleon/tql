@@ -182,6 +182,13 @@ parser.add_argument(
     help="plot gaia sources on archival image instead of tpf",
     default=False,
 )
+parser.add_argument(
+    "-var",
+    "--check_if_variable",
+    action="store_true",
+    help="check if target is in variable star catalog",
+    default=False,
+)
 # prints help if no argument supplied
 args = parser.parse_args(None if sys.argv[1:] else ["-h"])
 
@@ -219,6 +226,7 @@ if __name__ == "__main__":
         outdir=args.outdir,
         verbose=args.verbose,
         clobber=args.redo,
+        check_if_variable=args.check_if_variable,
     )
     if not args.save:
         pl.show()

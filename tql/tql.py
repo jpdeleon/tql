@@ -85,43 +85,48 @@ def plot_tql(
     use_archival_image=False,
     verbose=True,
     clobber=False,
+    check_if_variable=False,
 ):
     """
     Parameters
     ----------
     cadence : str
-        short, long
+        short (default), long
     lctype : str
         short=(pdcsap, sap, custom); long=(custom, cdips, pathos, qlp)
     sap_mask : str
-        short=pipeline; long=square,round,threshold,percentile
+        short=pipeline (default); long=square,round,threshold,percentile
     aper_radius : int
-        used for square or round sap_mask (default=1 pix)
+        used for square or round sap_mask for custom lc (default=1 pix)
     percentile : float
-        used for percentile sap_mask (default=90)
+        used for percentile sap_mask for custom lc (default=90)
     quality_bitmask : str
         none, [default], hard, hardest; See
         https://github.com/KeplerGO/lightkurve/blob/master/lightkurve/utils.py#L135
     flatten_method : str
-        wotan flatten method; See:
+        wotan flatten method (default=biweight); See:
         https://wotan.readthedocs.io/en/latest/Interface.html#module-flatten.flatten
     window_length : float
         length in days of the filter window (default=0.5; overridden by use_star_priors)
     sigma : tuple
-        sigma_lower & sigma_upper for outlier rejection after flattening
+        sigma_lower & sigma_upper for outlier rejection after flattening (default=None)
     Porb_limits : tuple
         orbital period search limits for TLS (default=None)
     use_star_priors : bool
         priors to compute t14 for detrending in wotan,
-        limb darkening in tls
+        limb darkening in tls (default=False)
     edge_cutoff : float
         length in days to be cut off each edge of lightcurve (default=0.1)
     bin_hr : float
-        bin size in hours of folded lightcurves
+        bin size in hours of folded lightcurves (default=4)
     run_gls : bool
         run Generalized Lomb Scargle (default=False)
     find_cluster : bool
         find if target is in cluster (default=False)
+    use_archival_image : bool
+        plot nearby gaia sources on archival image instead of tpf (default=False)
+    check_if_variable : bool
+        check if target is in variable star catalog (default=False)
     Notes:
     * removes scattered light subtraction + TESSPld
     * uses wotan's biweight to flatten lightcurve
@@ -178,6 +183,7 @@ def plot_tql(
                 apply_data_quality_mask=apply_data_quality_mask,
                 verbose=verbose,
                 clobber=clobber,
+                check_if_variable=check_if_variable,
             )
             alpha = 0.5
             bin_hr = 4 if bin_hr is None else bin_hr
@@ -207,6 +213,7 @@ def plot_tql(
                 apply_data_quality_mask=apply_data_quality_mask,
                 verbose=verbose,
                 clobber=clobber,
+                check_if_variable=check_if_variable,
             )
             bin_hr = 0.5 if bin_hr is None else bin_hr
             cad = 2 / 60 / 24
@@ -432,8 +439,8 @@ def plot_tql(
                 ax.axvline(
                     lower_harmonics, alpha=0.4, lw=1, linestyle="dashed"
                 )
-        ax.set_ylabel(r"Transit Least Squares SDE")
-        ax.set_xlabel("Period (days)")
+        ax.set_ylabel("Transit Least Squares SDE")
+        ax.set_xlabel("Period [days]")
         ax.plot(tls_results.periods, tls_results.power, color="black", lw=0.5)
         ax.set_xlim(period_min, period_max)
         # do not show negative SDE
@@ -474,7 +481,7 @@ def plot_tql(
             zorder=3,
             label="TLS model",
         )
-        ax.set_xlabel("Phase")
+        ax.set_xlabel("Phase [days]")
         ax.set_ylabel("Relative flux")
         width = tls_results.duration / tls_results.period
         ax.set_xlim(-width * 1.5, width * 1.5)
@@ -501,6 +508,7 @@ def plot_tql(
         )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
         ax.set_xlim(-width * 1.5, width * 1.5)
+        ax.set_xlabel("Phase [days]")
         ax.legend()
 
         # +++++++++++++++++++++ax7: tpf
@@ -556,6 +564,7 @@ def plot_tql(
                     threshold_sigma=l.threshold_sigma,
                     percentile=l.percentile,
                     survey=survey,
+                    fov_rad=fov_rad,
                     verbose=verbose,
                     ax=ax,
                 )
@@ -665,7 +674,7 @@ def plot_tql(
         msg += "-" * 30 + "\n"
         # secs = ','.join(map(str, l.all_sectors))
         if l.mission == "tess":
-            msg += f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors})\n"
+            msg += f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors}, {lctype.upper()} pipeline)\n"
         else:
             msg += f"SDE={tls_results.SDE:.4f} (campaign={l.sector} in {l.all_campaigns})\n"
         msg += (
@@ -675,8 +684,13 @@ def plot_tql(
         msg += f"T0={tls_results.T0+TESS_TIME_OFFSET:.4f} BJD\n"
         msg += f"Duration={tls_results.duration*24:.2f} hr" + " " * 10
         msg += f"Depth={(1-tls_results.depth)*100:.2f}%\n"
-        msg += f"Rp={Rp:.2f} " + r"R$_{\oplus}$" + "(diluted)" + " " * 5
-        msg += f"Rp={Rp_true:.2f} " + r"R$_{\oplus}$" + "(undiluted)\n"
+
+        if (lctype == "pdcsap") or (lctype == "sap"):
+            # msg += f"Rp={Rp:.2f} " + r"R$_{\oplus}$" + "(diluted)" + " " * 5
+            msg += f"Rp={Rp_true:.2f} " + r"R$_{\oplus}$" + "\n"
+        else:
+            msg += f"Rp={Rp:.2f} " + r"R$_{\oplus}$" + "(diluted)" + " " * 5
+            msg += f"Rp={Rp_true:.2f} " + r"R$_{\oplus}$" + "(undiluted)\n"
         msg += (
             f"Odd-Even mismatch={tls_results.odd_even_mismatch:.2f}"
             + r"$\sigma$"
@@ -701,7 +715,10 @@ def plot_tql(
         # spectype = star.get_spectral_type()
         # msg += f"SpT: {spectype}\n"
         msg += r"$\rho$" + f"star={tp.rho:.2f}+/-{tp.e_rho:.2f} gcc\n"
-        msg += f"Contamination ratio={l.contratio:.2f}% (TIC={tp.contratio:.2f}%)\n"
+        if (lctype == "pdcsap") or (lctype == "sap"):
+            msg += f"Contamination ratio={tp.contratio:.2f}% (from TIC)\n"
+        else:
+            msg += f"Contamination ratio={l.contratio:.2f}% (TIC={tp.contratio:.2f}%)\n"
         ax.text(0, 0, msg, fontsize=10)
         ax.axis("off")
 
