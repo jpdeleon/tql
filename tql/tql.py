@@ -36,6 +36,9 @@ from chronos.utils import (
     is_gaiaid_in_cluster,
 )
 
+LC_TYPES = ["custom", "cdips", "pathos", "qlp", "diamante"]
+SC_TYPES = ["pdcsap", "sap", "custom"]
+
 size = 16
 params = {
     "legend.fontsize": "medium",
@@ -87,13 +90,13 @@ def plot_tql(
     clobber=False,
     check_if_variable=False,
 ):
-    """
+    f"""
     Parameters
     ----------
     cadence : str
         short (default), long
     lctype : str
-        short=(pdcsap, sap, custom); long=(custom, cdips, pathos, qlp)
+        short=({SC_TYPES}); long=({LC_TYPES})
     sap_mask : str
         short=pipeline (default); long=square,round,threshold,percentile
     aper_radius : int
@@ -162,7 +165,7 @@ def plot_tql(
         if cadence == "long":
             sap_mask = "square" if sap_mask is None else sap_mask
             lctype = "custom" if lctype is None else lctype
-            lctypes = ["custom", "cdips", "pathos", "qlp"]
+            lctypes = LC_TYPES
             errmsg = f"{lctype} is not available in cadence=long"
             assert lctype in lctypes, errmsg
             lightcurve = LongCadence(
@@ -192,7 +195,7 @@ def plot_tql(
         elif cadence == "short":
             sap_mask = "pipeline" if sap_mask is None else sap_mask
             lctype = "pdcsap" if lctype is None else lctype
-            lctypes = ["pdcsap", "sap", "custom"]
+            lctypes = SC_TYPES
             errmsg = f"{lctype} is not available in cadence=short"
             assert lctype in lctypes, errmsg
             alpha = 0.1
@@ -254,8 +257,11 @@ def plot_tql(
         elif lctype == "qlp":
             lc = l.get_qlp_lc()
             l.aper_mask = l.qlp.get_aper_mask_qlp()
+        elif lctype == "diamante":
+            lc = l.get_diamante_lc()
+            l.aper_mask = l.diamante.get_aper_mask_diamante()
         else:
-            errmsg = "use lctype=[custom,sap,pdcsap,cdips,pathos,qlp]"
+            errmsg = f"use lctype=[{np.unique(np.array([SC_TYPES,LC_TYPES]))}]"
             raise ValueError(errmsg)
 
         if (outdir is not None) & (not os.path.exists(outdir)):
@@ -414,6 +420,10 @@ def plot_tql(
         else:
             # err somewhat improves SDE
             data = flat.time, flat.flux, flat.flux_err
+        if lctype == "diamante":
+            print(
+                "DIAmante pipeline uses multi-sector lcs. It is recommended to limit period search using `Porb_limits`."
+            )
         tls_results = tls(*data).power(
             R_star=Rstar,  # 0.13-3.5 default
             R_star_max=Rstar + 0.1 if Rstar > 3.5 else 3.5,

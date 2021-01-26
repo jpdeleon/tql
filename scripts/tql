@@ -43,7 +43,7 @@ parser.add_argument(
     "--lctype",
     type=str,
     help="type of lightcurve",
-    choices=["pdcsap", "sap", "custom", "cdips", "pathos", "qlp"],
+    choices=["pdcsap", "sap", "custom", "cdips", "pathos", "qlp", "diamante"],
     default=None,
 )
 # parser.add_argument(

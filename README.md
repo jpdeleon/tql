@@ -4,7 +4,7 @@
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 TESS Quick Look plot generator.
-`tql` handles TESS short cadence (SPOC pipeline) and long cadence ([QLP](http://archive.stsci.edu/hlsp/qlp), [CDIPS](http://archive.stsci.edu/hlsp/cdips), [PATHOS](http://archive.stsci.edu/hlsp/qlp), and custom) light curves.
+`tql` handles TESS short cadence (SPOC pipeline) and long cadence ([QLP](http://archive.stsci.edu/hlsp/qlp), [CDIPS](http://archive.stsci.edu/hlsp/cdips), [PATHOS](http://archive.stsci.edu/hlsp/qlp), [DIAmante](http://archive.stsci.edu/hlsp/diamante), and custom) light curves.
 Note that [chronos](https://github.com/jpdeleon/chronos) is a dependency.
 
 ## Run at Google colab
@@ -28,7 +28,7 @@ optional arguments:
                         custom or QLP (Huang+2020)
   -sr SEARCH_RADIUS, -search_radius SEARCH_RADIUS
                         search radius in arcsec (default=3)
-  -lc {pdcsap,sap,custom,cdips}, -lctype {pdcsap,sap,custom,cdips}
+  -lc {pdcsap,sap,custom,cdips,diamante}, -lctype {pdcsap,sap,custom,cdips,diamante}
                         type of lightcurve
   -a {pipeline,round,square,percentile,threshold}, -aper_mask {pipeline,round,square,percentile,threshold}
                         aperture mask type
@@ -64,6 +64,10 @@ optional arguments:
   -o OUTDIR, -outdir OUTDIR
                         output directory
   -v, -verbose         show details
+  -img, --use_archival_image
+                        plot gaia sources on archival image instead of tpf
+  -var, --check_if_variable
+                        check if target is in variable star catalog
 ```
 
 ![img](./plots/tic52368076_s1_pdcsap_sc.png)

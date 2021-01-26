@@ -19,8 +19,11 @@ assert len(files) > 0, "no *.h5 files found!"
 # print(files)
 sdes = {}
 for file in tqdm(files):
-    data = dd.io.load(file)
-    sdes[file] = data["SDE"]
+    try:
+        data = dd.io.load(file)
+        sdes[file] = data["SDE"]
+    except Exception as e:
+        print(e)
 
 # sort by sde
 s = pd.Series(sdes, name="sde").sort_values(ascending=False)
