@@ -1,4 +1,3 @@
-tql -tic #ticID -v -c long -lc diamante -sr 30 -s -img -f
 tql -tic 282502866 -v -c long -lc diamante -sr 30 -s -img -f
 tql -tic 251061007 -v -c long -lc diamante -sr 30 -s -img -f
 tql -tic 251087387 -v -c long -lc diamante -sr 30 -s -img -f

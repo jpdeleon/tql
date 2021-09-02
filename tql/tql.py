@@ -75,7 +75,8 @@ def plot_tql(
     Porb_limits=None,
     use_star_priors=False,
     edge_cutoff=0.1,
-    sigma=(10, 3),
+    sigma_clip_raw=(5, 5),
+    sigma_clip_flat=None,
     run_gls=False,
     find_cluster=False,
     savefig=False,
@@ -111,7 +112,9 @@ def plot_tql(
         https://wotan.readthedocs.io/en/latest/Interface.html#module-flatten.flatten
     window_length : float
         length in days of the filter window (default=0.5; overridden by use_star_priors)
-    sigma : tuple
+    sigma_clip_before : tuple
+        sigma_lower & sigma_upper for outlier rejection before flattening (default=5,5)
+    sigma_clip_flat : tuple
         sigma_lower & sigma_upper for outlier rejection after flattening (default=None)
     Porb_limits : tuple
         orbital period search limits for TLS (default=None)
@@ -267,20 +270,27 @@ def plot_tql(
         if (outdir is not None) & (not os.path.exists(outdir)):
             os.makedirs(outdir)
 
-        # fig, axs = pl.subplots(3, 3, figsize=(15, 12), constrained_layout=True)
-        # axs = axs.flatten()
         fig = pl.figure()
 
         # +++++++++++++++++++++ax: Raw + trend
-        # ax = axs[0]
         ax = fig.add_subplot(3, 3, 1)
-        lc = lc.normalize().remove_nans().remove_outliers(sigma=7)
+        lc = (
+            lc.normalize()
+            .remove_nans()
+            .remove_outliers(
+                sigma_lower=sigma_clip_raw[0], sigma_upper=sigma_clip_raw[1]
+            )
+        )
+        # estimate long term trend with long window
         flat, trend = lc.flatten(
             window_length=101, return_trend=True
         )  # flat and trend here are just place-holder
         time, flux = lc.time, lc.flux
         if use_star_priors:
             # for wotan and tls.power
+            print(
+                "Using star priors on transitleastsquares periodogram (assuming P=10 d)"
+            )
             Rstar = (
                 l.tic_params["rad"] if l.tic_params["rad"] is not None else 1.0
             )
@@ -297,7 +307,10 @@ def plot_tql(
 
         else:
             Rstar, Mstar = 1.0, 1.0
-
+        if verbose:
+            print(
+                f"Flattening lightcurve using {flatten_method} with window_length={window_length} d"
+            )
         wflat, wtrend = flatten(
             time,  # Array of time values
             flux,  # Array of flux values
@@ -309,9 +322,17 @@ def plot_tql(
             cval=5.0,  # Tuning parameter for the robust estimators
         )
         # f > np.median(f) + 5 * np.std(f)
-        idx = sigma_clip(
-            wflat, sigma_lower=sigma[0], sigma_upper=sigma[1]
-        ).mask
+        if verbose and sigma_clip_flat is not None:
+            print(
+                f"Applying sigma clip with (lower,upper)=({sigma_clip_flat})"
+            )
+            idx = sigma_clip(
+                wflat,
+                sigma_lower=sigma_clip_flat[0],
+                sigma_upper=sigma_clip_flat[1],
+            ).mask
+        else:
+            idx = np.zeros_like(wflat, dtype=bool)
         # replace flux values with that from wotan
         flat = flat[~idx]
         trend = trend[~idx]
@@ -321,7 +342,6 @@ def plot_tql(
         trend.plot(ax=ax, label="trend", lw=1, c="r")
 
         # +++++++++++++++++++++ax2 Lomb-scargle periodogram
-        # ax = axs[1]
         ax = fig.add_subplot(3, 3, 2)
         baseline = int(time[-1] - time[0])
         Prot_max = baseline / 2
@@ -347,7 +367,8 @@ def plot_tql(
         ).normalize()
         # dlc = lc.copy()
         # dlc.flux = detrend(lc.flux, bp=len(lc.flux)//2)+1
-
+        if verbose:
+            print("Estimating rotation period using Lomb-Scargle periodogram")
         ls = LombScargle(dlc.time[~tmask], dlc.flux[~tmask])
         frequencies, powers = ls.autopower(
             minimum_frequency=1.0 / Prot_max, maximum_frequency=2.0  # 0.5 day
@@ -373,11 +394,11 @@ def plot_tql(
         gls = Gls(data, Pbeg=0.1, verbose=verbose)
         if run_gls:
             if verbose:
-                print("Running GLS pipeline...")
+                print("Running Generalized Lomb-Scargle periodogram")
             # show plot if not saved
             _ = gls.plot(block=~savefig, figsize=(10, 8))
+
         # +++++++++++++++++++++ax phase-folded at rotation period + sinusoidal model
-        # ax = axs[2]
         ax = fig.add_subplot(3, 3, 3)
         offset = 0.5
         t_fit = np.linspace(0, 1, 100) - offset
@@ -404,14 +425,13 @@ def plot_tql(
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
         fig.add_axes(cax)
-        fig.colorbar(a, ax=ax, cax=cax, label=f"Time [BTJD]")
+        fig.colorbar(a, ax=ax, cax=cax, label="Time [BTJD]")
         ax.legend()
         ax.set_xlim(-best_period / 2, best_period / 2)
         ax.set_ylabel("Normalized Flux")
         ax.set_xlabel("Phase [days]")
 
         # +++++++++++++++++++++ax5: TLS periodogram
-        # ax = axs[4]
         ax = fig.add_subplot(3, 3, 5)
         period_min = 0.1 if Porb_min is None else Porb_min
         period_max = baseline / 2 if Porb_max is None else Porb_max
@@ -424,6 +444,7 @@ def plot_tql(
             print(
                 "DIAmante pipeline uses multi-sector lcs. It is recommended to limit period search using `Porb_limits`."
             )
+        # run TLS
         tls_results = tls(*data).power(
             R_star=Rstar,  # 0.13-3.5 default
             R_star_max=Rstar + 0.1 if Rstar > 3.5 else 3.5,
@@ -460,7 +481,6 @@ def plot_tql(
         ax.legend(title="Orbital period [d]")
 
         # +++++++++++++++++++++++ax4 : flattened lc
-        # ax = axs[3]
         ax = fig.add_subplot(3, 3, 4)
         flat.scatter(ax=ax, label="flat", zorder=1)
         # binned phase folded lc
@@ -472,7 +492,6 @@ def plot_tql(
         flat[tmask].scatter(ax=ax, label="transit", c="r", alpha=0.5, zorder=1)
 
         # +++++++++++++++++++++ax6: phase-folded at orbital period
-        # ax = axs[5]
         ax = fig.add_subplot(3, 3, 6)
         # binned phase folded lc
         fold = flat.fold(period=tls_results.period, t0=tls_results.T0)
@@ -498,7 +517,6 @@ def plot_tql(
         ax.legend()
 
         # +++++++++++++++++++++ax: odd-even
-        # ax = axs[6]
         ax = fig.add_subplot(3, 3, 7)
         yline = tls_results.depth
         fold.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
@@ -522,7 +540,6 @@ def plot_tql(
         ax.legend()
 
         # +++++++++++++++++++++ax7: tpf
-        # ax = axs[7]
         if cadence == "short":
             if l.tpf is None:
                 # e.g. pdcsap, sap
@@ -675,7 +692,6 @@ def plot_tql(
         # logg = tp["logg"] if logg == "nan" else logg
         # met = tp["MH"] if met == "nan" else met
 
-        # ax = axs[8]
         ax = fig.add_subplot(3, 3, 9)
         Rp = tls_results["rp_rs"] * Rstar * u.Rsun.to(u.Rearth)
         # np.sqrt(tls_results["depth"]*(1+l.contratio))
