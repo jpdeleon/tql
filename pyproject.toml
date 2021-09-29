@@ -1,3 +1,10 @@
+#
+[build-system]
+requires = [
+    "setuptools>=42",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
 #https://ljvmiranda921.github.io/notebook/2018/06/21/precommits-using-black-and-flake8/
 [tool.black]
 line-length = 79

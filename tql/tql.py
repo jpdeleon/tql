@@ -317,7 +317,7 @@ def plot_tql(
             method=flatten_method,
             window_length=window_length,  # The length of the filter window in units of ``time``
             edge_cutoff=edge_cutoff,
-            break_tolerance=0.1,  # Split into segments at breaks longer than that
+            break_tolerance=10,  # Split into segments at breaks longer than that
             return_trend=True,
             cval=5.0,  # Tuning parameter for the robust estimators
         )
@@ -767,9 +767,11 @@ def plot_tql(
         if (l.ticid is not None) & (l.target_name[0] == "("):
             # replace e.g. target_name = (ra, dec) with ticid
             l.target_name = f"TIC {l.ticid}"
+        if l.target_name.split(" ")[0].lower()=="toi":
+            target_name = "TOI "+l.target_name.split(" ")[1].zfill(4)
         fp = os.path.join(
             outdir,
-            f"{l.target_name.replace(' ','')}_s{l.sector}_{lctype}_{cadence[0]}c",
+            f"{target_name.replace(' ','')}_s{str(l.sector).zfill(2)}_{lctype}_{cadence[0]}c",
         )
         fig.tight_layout()  # (pad=0.5, w_pad=0.1, h_pad=0.1)
         if savefig:
