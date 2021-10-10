@@ -105,6 +105,10 @@ $ tql -toi 125.01 -v -a threshold -g (gls periodogram)
 $ tql -toi 125 -v  -s -c long -lc qlp (Quick Look Pipeline)
 $ tql -toi 125 -v  -s -c long -lc cdips (CDIPS Pipeline)
 $ tql -toi 125 -v  -s -c long -lc pathos (PATHOS Pipeline)
+
+For K2 lightcurves,
+$ kql -name 'k2-95' -v -img -s -lc k2sff -c long              
+$ kql -name 'k2-95' -v -img -s -lc everest -c long              
 ```
 
 ## Advanced usage

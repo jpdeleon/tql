@@ -167,7 +167,7 @@ def plot_kql(
     try:
         if cadence == "long":
             sap_mask = "square" if sap_mask is None else sap_mask
-            lctype = "custom" if lctype is None else lctype
+            lctype = "everest" if lctype is None else lctype
             errmsg = f"{lctype} is not available in cadence=long"
             assert lctype in LC_TYPES, errmsg
             if lctype.lower()=='k2sff':
@@ -241,14 +241,17 @@ def plot_kql(
         if lctype == "custom":
             # tpf is also called to make custom lc
             lc = l.make_custom_lc()
-        elif lctype == "pdcsap":
+        elif lctype=="sap":
             # just downloads lightcurvefile
-            lc = l._get_lc(lctype)
-        elif lctype == "sap":
-            # just downloads lightcurvefile;
-            lc = l._get_lc(lctype)
+            lc = l.lc_sap
+        elif lctype=="pdcsap":
+            lc = l.lc_pdcsap
+        elif lctype=="everest":
+            lc = l.lc_everest
+        elif lctype=="k2sff":
+            lc = l.lc_k2sff
         else:
-            errmsg = f"use lctype=[{np.unique(np.array([SC_TYPES,LC_TYPES]))}]"
+            errmsg = f"use lctype=[{[SC_TYPES,LC_TYPES]}]"
             raise ValueError(errmsg)
 
         if (outdir is not None) & (not os.path.exists(outdir)):
@@ -370,11 +373,7 @@ def plot_kql(
         ax.set_xlabel("Period [days]")
         ax.set_ylabel("Lomb-Scargle Power")
 
-        if lctype == "pathos":
-            # pathos do not have flux_err
-            data = (dlc.time[~tmask], dlc.flux[~tmask])
-        else:
-            data = (dlc.time[~tmask], dlc.flux[~tmask], dlc.flux_err[~tmask])
+        data = (dlc.time[~tmask], dlc.flux[~tmask], dlc.flux_err[~tmask])
         gls = Gls(data, Pbeg=0.1, verbose=verbose)
         if run_gls:
             if verbose:
@@ -515,78 +514,75 @@ def plot_kql(
         ax.legend()
 
         # +++++++++++++++++++++ax7: tpf
-        if cadence == "short":
-            if l.tpf is None:
-                # e.g. pdcsap, sap
-                tpf = l.get_tpf()
-            else:
-                # e.g. custom
-                tpf = l.tpf
+        if l.tpf is None:
+            # e.g. pdcsap, sap
+            tpf = l.get_tpf()
         else:
-            raise NotImplementedError
+            # e.g. custom
+            tpf = l.tpf
 
         if (l.gaia_sources is None) or (nearby_gaia_radius != 120):
             _ = l.query_gaia_dr2_catalog(radius=nearby_gaia_radius)
         # _ = plot_orientation(tpf, ax)
-        if use_archival_image:
-            try:
-                survey = "DSS2 Red"
-                # query image to get projection
-                ny, nx = tpf.flux.shape[1:]
-                diag = np.sqrt(nx ** 2 + ny ** 2)
-                fov_rad = (0.4 * diag * Kepler_pix_scale).to(u.arcmin)
-                position = l.target_coord.icrs.to_string()
-                results = SkyView.get_images(
-                    position=position,
-                    coordinates="icrs",
-                    survey=survey,
-                    radius=fov_rad,
-                    grid=True,
-                )
-                if len(results) > 0:
-                    hdu = results[0][0]
-                else:
-                    errmsg = "SkyView returned empty result. Try a different survey."
-                    raise ValueError(errmsg)
-                # plot gaia sources on archival image
-                ax = fig.add_subplot(3, 3, 8, projection=WCS(hdu.header))
-                _ = plot_gaia_sources_on_survey(
-                    tpf=tpf,
-                    target_gaiaid=l.gaiaid,
-                    gaia_sources=l.gaia_sources,
-                    kmax=1,
-                    depth=1 - tls_results.depth,
-                    sap_mask=l.best_aper_mask,
-                    #aper_radius=l.aper_radius,
-                    #threshold_sigma=l.threshold_sigma,
-                    #percentile=l.percentile,
-                    survey=survey,
-                    fov_rad=fov_rad,
-                    #verbose=verbose,
-                    ax=ax,
-                )
-            except Exception as e:
-                print(f"{survey} image query failed.\n{e}")
-        else:
-            #errmsg="Add argument: --img"
-            #raise NotImplementedError(errmsg)
-            # plot gaia sources on tpf
-            ax = fig.add_subplot(3, 3, 8)
-            _ = plot_gaia_sources_on_tpf(
-                tpf=tpf,
-                target_gaiaid=l.gaiaid,
-                gaia_sources=l.gaia_sources,
-                kmax=1,
-                depth=1 - tls_results.depth,
-                sap_mask=l.best_aper_mask,
-            #    aper_radius=l.aper_radius,
-            #    threshold_sigma=l.threshold_sigma,
-            #    percentile=l.percentile,
-                cmap=tpf_cmap,
-                dmag_limit=8,
-                verbose=verbose,
-                ax=ax,
-            )
+        # if use_archival_image:
+        #     try:
+        #         survey = "DSS2 Red"
+        #         # query image to get projection
+        #         ny, nx = tpf.flux.shape[1:]
+        #         diag = np.sqrt(nx ** 2 + ny ** 2)
+        #         fov_rad = (0.4 * diag * Kepler_pix_scale).to(u.arcmin)
+        #         position = l.target_coord.icrs.to_string()
+        #         results = SkyView.get_images(
+        #             position=position,
+        #             coordinates="icrs",
+        #             survey=survey,
+        #             radius=fov_rad,
+        #             grid=True,
+        #         )
+        #         if len(results) > 0:
+        #             hdu = results[0][0]
+        #         else:
+        #             errmsg = "SkyView returned empty result. Try a different survey."
+        #             raise ValueError(errmsg)
+        #         # plot gaia sources on archival image
+        #         ax = fig.add_subplot(3, 3, 8, projection=WCS(hdu.header))
+        #         _ = plot_gaia_sources_on_survey(
+        #             tpf=tpf,
+        #             target_gaiaid=l.gaiaid,
+        #             gaia_sources=l.gaia_sources,
+        #             kmax=1,
+        #             depth=1 - tls_results.depth,
+        #             sap_mask=l.best_aper_mask,
+        #             #aper_radius=l.aper_radius,
+        #             #threshold_sigma=l.threshold_sigma,
+        #             #percentile=l.percentile,
+        #             survey=survey,
+        #             fov_rad=fov_rad,
+        #             #verbose=verbose,
+        #             ax=ax,
+        #         )
+        #     except Exception as e:
+        #         print(f"{survey} image query failed.\n{e}")
+        # else:
+        #     #errmsg="Add argument: --img"
+        #     #raise NotImplementedError(errmsg)
+        #     # plot gaia sources on tpf
+        #     ax = fig.add_subplot(3, 3, 8)
+        #     _ = plot_gaia_sources_on_tpf(
+        #         tpf=tpf,
+        #         target_gaiaid=l.gaiaid,
+        #         gaia_sources=l.gaia_sources,
+        #         kmax=1,
+        #         depth=1 - tls_results.depth,
+        #         sap_mask=l.best_aper_mask,
+        #     #    aper_radius=l.aper_radius,
+        #     #    threshold_sigma=l.threshold_sigma,
+        #     #    percentile=l.percentile,
+        #         cmap=tpf_cmap,
+        #         dmag_limit=8,
+        #         verbose=verbose,
+        #         ax=ax,
+        #     )
 
         if l.contratio is None:
             # also computed in make_custom_lc()
@@ -671,16 +667,13 @@ def plot_kql(
         msg = "\nCandidate Properties\n"
         msg += "-" * 30 + "\n"
         # secs = ','.join(map(str, l.all_campaigns))
-        if l.mission == MISSION:
-            msg += f"SDE={tls_results.SDE:.4f} (campaign={l.campaign} in {l.all_campaigns}, {lctype.upper()} pipeline)\n"
-        else:
-            msg += f"SDE={tls_results.SDE:.4f} (campaign={l.campaign} in {l.all_campaigns})\n"
+        msg += f"SDE={tls_results.SDE:.4f} (campaign={l.campaign} in {l.all_campaigns}, {lctype.upper()} pipeline)\n"
         msg += (
             f"Period={tls_results.period:.4f}+/-{tls_results.period_uncertainty:.4f} d"
             + " " * 5
         )
-        msg += f"T0={tls_results.T0+K2_TIME_OFFSET:.4f} BJD\n"
-        msg += f"Duration={tls_results.duration*24:.2f} hr" + " " * 10
+        msg += f"Duration={tls_results.duration*24:.2f} hr\n"
+        msg += f"T0={tls_results.T0+K2_TIME_OFFSET:.4f} BJD" + " " * 10
         msg += f"Depth={(1-tls_results.depth)*100:.2f}%\n"
 
         if (lctype == "pdcsap") or (lctype == "sap"):
@@ -699,15 +692,15 @@ def plot_kql(
         msg += f"EPIC ID={l.epicid}" + " " * 5
         msg += f"Tmag={tp.Tmag:.2f}\n"
         msg += f"Gaia DR2 ID={l.gaiaid}\n"
-        msg += f"Parallax={gp.parallax:.4f} mas\n"
+        msg += f"Parallax={gp.parallax:.4f} mas = {100/gp.parallax:.1f} pc\n"
         msg += f"GOF_AL={gp.astrometric_gof_al:.2f} (hints binarity if >20)\n"
         D = gp.astrometric_excess_noise_sig
         msg += f"astro. excess noise sig={D:.2f} (hints binarity if >5)\n"
         msg += (
             f"Rstar={Rstar:.2f}+/-{Rstar_err:.2f} " + r"R$_{\odot}$" + " " * 5
         )
-        msg += f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + "\n"
-        msg += f"Teff={Teff}+/-{eteff} K" + " " * 5
+        msg += f"Teff={Teff}+/-{eteff} K\n"
+        msg += f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + " " * 5
         msg += f"logg={logg:.2f}+/-{tp.e_logg:.2f} cgs\n"
         msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex\n"
         # spectype = star.get_spectral_type()
@@ -739,10 +732,10 @@ def plot_kql(
         if (l.epicid is not None) & (l.target_name[0] == "("):
             # replace e.g. target_name = (ra, dec) with epicid
             l.target_name = f"EPIC {l.epicid}"
-        f1 = l.target_name.split("-")[0].lower()
-        f2 = l.target_name.split(" ")[0].lower()
-        if (f1=="k2") or (f2=="k2"):
-            target_name = "K2 "+l.target_name.split(" ")[1].zfill(4)
+        if l.target_name.split("-")[0].lower()=="k2":
+            target_name = "K2 "+l.target_name.split("-")[1]
+        elif l.target_name.split(" ")[0].lower():
+            target_name = "K2 "+l.target_name.split(" ")[1]
         fp = os.path.join(
             outdir,
             f"{target_name.replace(' ','')}_s{str(l.campaign).zfill(2)}_{lctype}_{cadence[0]}c",
