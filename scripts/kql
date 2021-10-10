@@ -1,0 +1,241 @@
+#!/usr/bin/env python
+# Import standard library
+import sys
+import argparse
+import logging
+import matplotlib.pyplot as pl
+from tql.kql import plot_kql
+
+log = logging.getLogger(__name__)
+
+parser = argparse.ArgumentParser(description="create tql based on chronos")
+parser.add_argument("-gaia", type=int, help="Gaia DR2 ID", default=None)
+parser.add_argument("-k2", type=int, help="K2 ID", default=None)
+parser.add_argument("-epic", type=int, help="EPIC ID", default=None)
+parser.add_argument(
+    "-coords",
+    type=str,
+    help="e.g. '08:09:10 -05:04:23' or '22.5 -12.56'",
+    nargs=2,
+    default=None,
+)
+parser.add_argument("-name", type=str, help="target name", default=None)
+parser.add_argument(
+    "-camp", "--campaign", type=int, help="K2 campaign", default=None
+)
+parser.add_argument(
+    "-c",
+    "--cadence",
+    type=str,
+    choices=["long", "short"],
+    help="30-min long or 2-min short (default)",
+    default="short",
+)
+parser.add_argument(
+    "-sr",
+    "--search_radius",
+    type=float,
+    help="search radius in arcsec (default=3)",
+    default=3,
+)
+parser.add_argument(
+    "-lc",
+    "--lctype",
+    type=str,
+    help="type of lightcurve",
+    choices=["pdcsap", "sap", "custom", "everest", "k2sff"],
+    default=None,
+)
+# parser.add_argument(
+#     "-m",
+#     "--mission",
+#     type=str,
+#     help="TESS or K2 or Kepler",
+#     default='TESS',
+# )
+parser.add_argument(
+    "-a",
+    "--aper_mask",
+    type=str,
+    help="aperture mask type",
+    choices=["pipeline", "round", "square", "percentile", "threshold"],
+    default=None,
+)
+parser.add_argument(
+    "-t", "--threshold", type=float, help="mask threshold in sigma", default=5
+)
+parser.add_argument(
+    "-r", "--aper_radius", type=int, help="mask radius in pix", default=1
+)
+parser.add_argument(
+    "-perc", "--percentile", type=float, help="mask percentile", default=90
+)
+parser.add_argument(
+    "-qb",
+    "--quality_bitmask",
+    type=str,
+    choices=["none", "default", "hard", "hardest"],
+    default="default",
+)
+parser.add_argument(
+    "-size",
+    "--cutout_size",
+    nargs=2,
+    type=float,
+    help="FFI cutout size for long cadence (default=[12,12] pix)",
+    default=(12, 12),
+)
+parser.add_argument(
+    "-method",
+    "--flatten_method",
+    type=str,
+    help="wotan flatten method (default=biweight)",
+    default="biweight",
+)
+parser.add_argument(
+    "-w",
+    "--window_length",
+    type=float,
+    help="flatten method window length (default=0.5 days)",
+    default=0.5,
+)
+parser.add_argument(
+    "-e",
+    "--edge_cutoff",
+    type=int,
+    help="cut each edges (default=0.1 days)",
+    default=0.1,
+)
+parser.add_argument(
+    "--sigma_clip_raw",
+    type=float,
+    help="(sigma_lo,sigma_hi) for outlier rejection after flattening lc",
+    nargs=2,
+    default=(5, 5),
+)
+parser.add_argument(
+    "--sigma_clip_flat",
+    type=float,
+    help="(sigma_lo,sigma_hi) for outlier rejection after flattening lc",
+    nargs=2,
+    default=None,
+)
+parser.add_argument(
+    "-qm",
+    "--quality_mask",
+    action="store_true",
+    help="remove chunks of bad cadences identified in data release notes",
+    default=False,
+)
+parser.add_argument(
+    "-plims",
+    "--period_limits",
+    help="period limits in periodogram search; default=(1, baseline/2) days",
+    nargs=2,
+    type=float,
+    default=None,
+)
+parser.add_argument(
+    "-b",
+    "--bin_hr",
+    type=float,
+    help="bin size in folded lc (default=4 hr if -c=long else 0.5 hr)",
+    default=0.5,
+)
+parser.add_argument(
+    "-n",
+    "--nearby_gaia_radius",
+    type=float,
+    help="nearby gaia sources to consider (default=120 arcsec)",
+    default=120,
+)
+parser.add_argument(
+    "-u",
+    "--use_priors",
+    action="store_true",
+    help="use star priors for detrending and periodogram",
+    default=False,
+)
+parser.add_argument(
+    "-g", "--gls", action="store_true", help="run GLS pipeline", default=False
+)
+parser.add_argument(
+    "-f",
+    "--find_cluster",
+    action="store_true",
+    help="find if target is in cluster (default=False)",
+    default=False,
+)
+parser.add_argument(
+    "-s",
+    "--save",
+    action="store_true",
+    help="save figure and tls",
+    default=False,
+)
+parser.add_argument(
+    "-o", "--outdir", type=str, help="output directory", default="."
+)
+parser.add_argument(
+    "-v", "--verbose", action="store_true", help="show details", default=False
+)
+parser.add_argument(
+    "--redo", action="store_true", help="overwrite", default=False
+)
+parser.add_argument(
+    "-img",
+    "--use_archival_image",
+    action="store_true",
+    help="plot gaia sources on archival image instead of tpf",
+    default=False,
+)
+parser.add_argument(
+    "-var",
+    "--check_if_variable",
+    action="store_true",
+    help="check if target is in variable star catalog",
+    default=False,
+)
+# prints help if no argument supplied
+args = parser.parse_args(None if sys.argv[1:] else ["-h"])
+
+if __name__ == "__main__":
+    fig = plot_kql(
+        gaiaid=args.gaia,
+        k2id=args.k2,
+        epicid=args.epic,
+        coords=args.coords,
+        name=args.name,
+        search_radius=args.search_radius,
+        campaign=args.campaign,
+        cadence=args.cadence,
+        lctype=args.lctype,
+        sap_mask=args.aper_mask,
+        aper_radius=args.aper_radius,
+        threshold_sigma=args.threshold,
+        percentile=args.percentile,
+        quality_bitmask=args.quality_bitmask,
+        apply_data_quality_mask=args.quality_mask,
+        flatten_method=args.flatten_method,
+        window_length=args.window_length,
+        sigma_clip_raw=args.sigma_clip_raw,
+        sigma_clip_flat=args.sigma_clip_flat,
+        cutout_size=args.cutout_size,
+        bin_hr=args.bin_hr,
+        Porb_limits=args.period_limits,
+        use_star_priors=args.use_priors,
+        edge_cutoff=args.edge_cutoff,
+        find_cluster=args.find_cluster,
+        nearby_gaia_radius=args.nearby_gaia_radius,
+        use_archival_image=args.use_archival_image,
+        run_gls=args.gls,
+        savefig=args.save,
+        savetls=args.save,
+        outdir=args.outdir,
+        verbose=args.verbose,
+        clobber=args.redo,
+        check_if_variable=args.check_if_variable,
+    )
+    if not args.save:
+        pl.show()
+    pl.close()

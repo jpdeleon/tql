@@ -25,10 +25,9 @@ from transitleastsquares import transitleastsquares as tls
 import deepdish as dd
 
 from chronos.gls import Gls
-from chronos.lightcurve import ShortCadence, LongCadence
-from chronos.qlp import QLP
+from chronos.k2 import K2, Everest, K2sff
 from chronos.plot import plot_gaia_sources_on_tpf, plot_gaia_sources_on_survey
-from chronos.constants import TESS_TIME_OFFSET, TESS_pix_scale
+from chronos.constants import K2_TIME_OFFSET, Kepler_pix_scale
 from chronos.utils import (
     parse_aperture_mask,
     get_fluxes_within_mask,
@@ -36,7 +35,8 @@ from chronos.utils import (
     is_gaiaid_in_cluster,
 )
 
-LC_TYPES = ["custom", "cdips", "pathos", "qlp", "diamante"]
+MISSION = "K2"
+LC_TYPES = ["k2sff","everest"]
 SC_TYPES = ["pdcsap", "sap", "custom"]
 
 size = 16
@@ -53,13 +53,13 @@ params = {
 pl.rcParams.update(params)
 
 
-def plot_tql(
+def plot_kql(
     gaiaid=None,
-    toiid=None,
-    ticid=None,
+    k2id=None,
+    epicid=None,
     coords=None,
     name=None,
-    sector=None,
+    campaign=None,
     search_radius=3,
     cadence="short",
     lctype=None,  # custom, pdcsap, sap, custom, qlp
@@ -134,7 +134,7 @@ def plot_tql(
     check_if_variable : bool
         check if target is in variable star catalog (default=False)
     Notes:
-    * removes scattered light subtraction + TESSPld
+    * removes scattered light subtraction + Pld
     * uses wotan's biweight to flatten lightcurve
     * uses TLS to search for transit signals
 
@@ -168,29 +168,34 @@ def plot_tql(
         if cadence == "long":
             sap_mask = "square" if sap_mask is None else sap_mask
             lctype = "custom" if lctype is None else lctype
-            lctypes = LC_TYPES
             errmsg = f"{lctype} is not available in cadence=long"
-            assert lctype in lctypes, errmsg
-            lightcurve = LongCadence(
-                gaiaDR2id=gaiaid,
-                toiid=toiid,
-                ticid=ticid,
-                name=name,
-                ra_deg=target_coord.ra.deg if target_coord else None,
-                dec_deg=target_coord.dec.deg if target_coord else None,
-                sector=sector,
-                search_radius=search_radius,
-                sap_mask=sap_mask,
-                aper_radius=aper_radius,
-                threshold_sigma=threshold_sigma,
-                percentile=percentile,
-                cutout_size=cutout_size,
-                quality_bitmask=quality_bitmask,
-                apply_data_quality_mask=apply_data_quality_mask,
-                verbose=verbose,
-                clobber=clobber,
-                check_if_variable=check_if_variable,
-            )
+            assert lctype in LC_TYPES, errmsg
+            if lctype.lower()=='k2sff':
+                lightcurve = K2sff(
+                    gaiaDR2id=gaiaid,
+                    epicid=epicid,
+                    name=name,
+                    ra_deg=target_coord.ra.deg if target_coord else None,
+                    dec_deg=target_coord.dec.deg if target_coord else None,
+                    campaign=campaign,
+                    quality_bitmask=quality_bitmask,
+                    #apply_data_quality_mask=apply_data_quality_mask,
+                    verbose=verbose,
+                    #check_if_variable=check_if_variable,
+                )
+            elif lctype.lower()=='everest':
+                lightcurve = Everest(
+                    gaiaDR2id=gaiaid,
+                    epicid=epicid,
+                    name=name,
+                    ra_deg=target_coord.ra.deg if target_coord else None,
+                    dec_deg=target_coord.dec.deg if target_coord else None,
+                    campaign=campaign,
+                    quality_bitmask=quality_bitmask,
+                    #apply_data_quality_mask=apply_data_quality_mask,
+                    verbose=verbose,
+                    #check_if_variable=check_if_variable,
+                )
             alpha = 0.5
             bin_hr = 4 if bin_hr is None else bin_hr
             # cad = np.median(np.diff(time))
@@ -198,28 +203,25 @@ def plot_tql(
         elif cadence == "short":
             sap_mask = "pipeline" if sap_mask is None else sap_mask
             lctype = "pdcsap" if lctype is None else lctype
-            lctypes = SC_TYPES
             errmsg = f"{lctype} is not available in cadence=short"
-            assert lctype in lctypes, errmsg
+            assert lctype in SC_TYPES, errmsg
             alpha = 0.1
-            lightcurve = ShortCadence(
+            lightcurve = K2(
                 gaiaDR2id=gaiaid,
-                toiid=toiid,
-                ticid=ticid,
+                epicid=epicid,
                 ra_deg=target_coord.ra.deg if target_coord else None,
                 dec_deg=target_coord.dec.deg if target_coord else None,
                 name=name,
-                sector=sector,
+                campaign=campaign,
                 search_radius=search_radius,
-                sap_mask=sap_mask,
-                aper_radius=aper_radius,
-                threshold_sigma=threshold_sigma,
-                percentile=percentile,
+                #sap_mask=sap_mask,
+                #aper_radius=aper_radius,
+                #threshold_sigma=threshold_sigma,
+                #percentile=percentile,
                 quality_bitmask=quality_bitmask,
-                apply_data_quality_mask=apply_data_quality_mask,
+                #apply_data_quality_mask=apply_data_quality_mask,
                 verbose=verbose,
-                clobber=clobber,
-                check_if_variable=check_if_variable,
+                #check_if_variable=check_if_variable,
             )
             bin_hr = 0.5 if bin_hr is None else bin_hr
             cad = 2 / 60 / 24
@@ -241,28 +243,10 @@ def plot_tql(
             lc = l.make_custom_lc()
         elif lctype == "pdcsap":
             # just downloads lightcurvefile
-            lc = l.get_lc(lctype)
+            lc = l._get_lc(lctype)
         elif lctype == "sap":
             # just downloads lightcurvefile;
-            lc = l.get_lc(lctype)
-        elif lctype == "cdips":
-            errmsg = "cdips is only available for cadence=long"
-            assert l.cadence == "long", errmsg
-            #  just downloads fits file
-            lc = l.get_cdips_lc()
-            l.aper_mask = l.cdips.get_aper_mask_cdips()
-        elif lctype == "pathos":
-            errmsg = "pathos is only available for cadence=long"
-            assert l.cadence == "long", errmsg
-            #  just downloads fits file
-            lc = l.get_pathos_lc()
-            l.aper_mask = l.pathos.get_aper_mask_pathos()
-        elif lctype == "qlp":
-            lc = l.get_qlp_lc()
-            l.aper_mask = l.qlp.get_aper_mask_qlp()
-        elif lctype == "diamante":
-            lc = l.get_diamante_lc()
-            l.aper_mask = l.diamante.get_aper_mask_diamante()
+            lc = l._get_lc(lctype)
         else:
             errmsg = f"use lctype=[{np.unique(np.array([SC_TYPES,LC_TYPES]))}]"
             raise ValueError(errmsg)
@@ -339,19 +323,19 @@ def plot_tql(
         trend.flux = wtrend[~idx]
         flat.flux = wflat[~idx]
         _ = lc.scatter(ax=ax, label="raw")
-        trend.plot(ax=ax, label=f"trend\nmethod={flatten_method} (window_size={window_length})", lw=1, c="r")
+        trend.plot(ax=ax, label="trend", lw=1, c="r")
 
         # +++++++++++++++++++++ax2 Lomb-scargle periodogram
         ax = fig.add_subplot(3, 3, 2)
         baseline = int(time[-1] - time[0])
         Prot_max = baseline / 2
 
-        if l.toi_params is not None:
+        if l.k2_params is not None:
             tmask = get_transit_mask(
                 lc,
-                period=l.toi_period,
-                epoch=l.toi_epoch - TESS_TIME_OFFSET,
-                duration_hours=l.toi_duration,
+                period=l.k2_period,
+                epoch=l.k2_epoch - K2_TIME_OFFSET,
+                duration_hours=l.k2_duration,
             )
             label = "masked & "
         else:
@@ -435,15 +419,6 @@ def plot_tql(
         ax = fig.add_subplot(3, 3, 5)
         period_min = 0.1 if Porb_min is None else Porb_min
         period_max = baseline / 2 if Porb_max is None else Porb_max
-        if lctype == "pathos":
-            data = flat.time, flat.flux
-        else:
-            # err somewhat improves SDE
-            data = flat.time, flat.flux, flat.flux_err
-        if lctype == "diamante":
-            print(
-                "DIAmante pipeline uses multi-sector lcs. It is recommended to limit period search using `Porb_limits`."
-            )
         # run TLS
         tls_results = tls(*data).power(
             R_star=Rstar,  # 0.13-3.5 default
@@ -548,12 +523,7 @@ def plot_tql(
                 # e.g. custom
                 tpf = l.tpf
         else:
-            if l.tpf_tesscut is None:
-                # e.g. cdips
-                tpf = l.get_tpf_tesscut()
-            else:
-                # e.g. custom
-                tpf = l.tpf_tesscut
+            raise NotImplementedError
 
         if (l.gaia_sources is None) or (nearby_gaia_radius != 120):
             _ = l.query_gaia_dr2_catalog(radius=nearby_gaia_radius)
@@ -564,7 +534,7 @@ def plot_tql(
                 # query image to get projection
                 ny, nx = tpf.flux.shape[1:]
                 diag = np.sqrt(nx ** 2 + ny ** 2)
-                fov_rad = (0.4 * diag * TESS_pix_scale).to(u.arcmin)
+                fov_rad = (0.4 * diag * Kepler_pix_scale).to(u.arcmin)
                 position = l.target_coord.icrs.to_string()
                 results = SkyView.get_images(
                     position=position,
@@ -586,18 +556,20 @@ def plot_tql(
                     gaia_sources=l.gaia_sources,
                     kmax=1,
                     depth=1 - tls_results.depth,
-                    sap_mask=l.sap_mask,
-                    aper_radius=l.aper_radius,
-                    threshold_sigma=l.threshold_sigma,
-                    percentile=l.percentile,
+                    sap_mask=l.best_aper_mask,
+                    #aper_radius=l.aper_radius,
+                    #threshold_sigma=l.threshold_sigma,
+                    #percentile=l.percentile,
                     survey=survey,
                     fov_rad=fov_rad,
-                    verbose=verbose,
+                    #verbose=verbose,
                     ax=ax,
                 )
             except Exception as e:
                 print(f"{survey} image query failed.\n{e}")
         else:
+            #errmsg="Add argument: --img"
+            #raise NotImplementedError(errmsg)
             # plot gaia sources on tpf
             ax = fig.add_subplot(3, 3, 8)
             _ = plot_gaia_sources_on_tpf(
@@ -606,10 +578,10 @@ def plot_tql(
                 gaia_sources=l.gaia_sources,
                 kmax=1,
                 depth=1 - tls_results.depth,
-                sap_mask=l.sap_mask,
-                aper_radius=l.aper_radius,
-                threshold_sigma=l.threshold_sigma,
-                percentile=l.percentile,
+                sap_mask=l.best_aper_mask,
+            #    aper_radius=l.aper_radius,
+            #    threshold_sigma=l.threshold_sigma,
+            #    percentile=l.percentile,
                 cmap=tpf_cmap,
                 dmag_limit=8,
                 verbose=verbose,
@@ -634,8 +606,8 @@ def plot_tql(
         tls_results["flux_raw"] = lc.flux
         tls_results["time_flat"] = flat.time
         tls_results["flux_flat"] = flat.flux
-        tls_results["ticid"] = l.ticid
-        tls_results["sector"] = l.sector
+        tls_results["epicid"] = l.epicid
+        tls_results["campaign"] = l.campaign
         tls_results["cont_ratio"] = l.contratio
         # add gls_results
         tls_results["power_gls"] = (gls.power.max(), gls.power.std())
@@ -698,25 +670,22 @@ def plot_tql(
         Rp_true = Rp * np.sqrt(1 + l.contratio)
         msg = "\nCandidate Properties\n"
         msg += "-" * 30 + "\n"
-        # secs = ','.join(map(str, l.all_sectors))
-        nsecs = len(l.all_sectors)
-        if nsecs<5:
-            msg += f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors}, {lctype.upper()} pipeline)\n"
+        # secs = ','.join(map(str, l.all_campaigns))
+        if l.mission == MISSION:
+            msg += f"SDE={tls_results.SDE:.4f} (campaign={l.campaign} in {l.all_campaigns}, {lctype.upper()} pipeline)\n"
         else:
-            msg += f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors[:nsecs//2]}"
-            msg += "\n"+f"{l.all_sectors[nsecs//2:]}, {lctype.upper()} pipeline)\n"
+            msg += f"SDE={tls_results.SDE:.4f} (campaign={l.campaign} in {l.all_campaigns})\n"
         msg += (
             f"Period={tls_results.period:.4f}+/-{tls_results.period_uncertainty:.4f} d"
             + " " * 5
         )
-        msg += f"Duration={tls_results.duration*24:.2f} hr" + "\n"
-        msg += f"T0={tls_results.T0+TESS_TIME_OFFSET:.4f} BJD" + " " * 10
+        msg += f"T0={tls_results.T0+K2_TIME_OFFSET:.4f} BJD\n"
+        msg += f"Duration={tls_results.duration*24:.2f} hr" + " " * 10
         msg += f"Depth={(1-tls_results.depth)*100:.2f}%\n"
 
         if (lctype == "pdcsap") or (lctype == "sap"):
             # msg += f"Rp={Rp:.2f} " + r"R$_{\oplus}$" + "(diluted)" + " " * 5
-            msg += f"Rp={Rp_true:.2f} " + r"R$_{\oplus}$ "
-            msg += f"= {Rp_true*u.Rearth.to(u.Rjup):.2f}" + r"R$_{\rm{Jup}}$" + "\n"
+            msg += f"Rp={Rp_true:.2f} " + r"R$_{\oplus}$" + "\n"
         else:
             msg += f"Rp={Rp:.2f} " + r"R$_{\oplus}$" + "(diluted)" + " " * 5
             msg += f"Rp={Rp_true:.2f} " + r"R$_{\oplus}$" + "(undiluted)\n"
@@ -727,18 +696,18 @@ def plot_tql(
         msg += "\n" * 2
         msg += "Stellar Properties\n"
         msg += "-" * 30 + "\n"
-        msg += f"TIC ID={l.ticid}" + " " * 5
+        msg += f"EPIC ID={l.epicid}" + " " * 5
         msg += f"Tmag={tp.Tmag:.2f}\n"
         msg += f"Gaia DR2 ID={l.gaiaid}\n"
-        msg += f"Parallax={gp.parallax:.4f} mas = {100/gp.parallax:.1f} pc\n"
+        msg += f"Parallax={gp.parallax:.4f} mas\n"
         msg += f"GOF_AL={gp.astrometric_gof_al:.2f} (hints binarity if >20)\n"
         D = gp.astrometric_excess_noise_sig
         msg += f"astro. excess noise sig={D:.2f} (hints binarity if >5)\n"
         msg += (
             f"Rstar={Rstar:.2f}+/-{Rstar_err:.2f} " + r"R$_{\odot}$" + " " * 5
         )
-        msg += f"Teff={Teff}+/-{eteff} K" + "\n"
-        msg += f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + " " * 5
+        msg += f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + "\n"
+        msg += f"Teff={Teff}+/-{eteff} K" + " " * 5
         msg += f"logg={logg:.2f}+/-{tp.e_logg:.2f} cgs\n"
         msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex\n"
         # spectype = star.get_spectral_type()
@@ -751,10 +720,10 @@ def plot_tql(
         ax.text(0, 0, msg, fontsize=10)
         ax.axis("off")
 
-        if l.toiid is not None:
-            title = f"TOI {l.toiid} | TIC {l.ticid} (sector {l.sector})"
+        if l.k2id is not None:
+            title = f"K2 {l.k2id} | EPIC {l.epicid} (campaign {l.campaign})"
         else:
-            title = f"TIC {l.ticid} (sector {l.sector})"
+            title = f"EPIC {l.epicid} (campaign {l.campaign})"
 
         if find_cluster:
             if is_gaiaid_in_cluster(
@@ -767,14 +736,16 @@ def plot_tql(
         fig.suptitle(title, y=1.01)
         end = timer()
         msg = ""
-        if (l.ticid is not None) & (l.target_name[0] == "("):
-            # replace e.g. target_name = (ra, dec) with ticid
-            l.target_name = f"TIC {l.ticid}"
-        if l.target_name.split(" ")[0].lower()=="toi":
-            target_name = "TOI "+l.target_name.split(" ")[1].zfill(4)
+        if (l.epicid is not None) & (l.target_name[0] == "("):
+            # replace e.g. target_name = (ra, dec) with epicid
+            l.target_name = f"EPIC {l.epicid}"
+        f1 = l.target_name.split("-")[0].lower()
+        f2 = l.target_name.split(" ")[0].lower()
+        if (f1=="k2") or (f2=="k2"):
+            target_name = "K2 "+l.target_name.split(" ")[1].zfill(4)
         fp = os.path.join(
             outdir,
-            f"{target_name.replace(' ','')}_s{str(l.sector).zfill(2)}_{lctype}_{cadence[0]}c",
+            f"{target_name.replace(' ','')}_s{str(l.campaign).zfill(2)}_{lctype}_{cadence[0]}c",
         )
         fig.tight_layout()  # (pad=0.5, w_pad=0.1, h_pad=0.1)
         if savefig:
@@ -786,7 +757,7 @@ def plot_tql(
                 # msg += f"Saved: {fp}_gls.png\n"
         if savetls:
             tls_results["gaiaid"] = l.gaiaid
-            tls_results["ticid"] = l.ticid
+            tls_results["epicid"] = l.epicid
             dd.io.save(fp + "_tls.h5", tls_results)
             msg += f"Saved: {fp}_tls.h5\n"
 

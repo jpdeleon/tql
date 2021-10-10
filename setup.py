@@ -17,7 +17,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     # package_dir={"tql": "tql"},
-    scripts=["scripts/tql", "scripts/rank_tls", "scripts/rank_gls"],
+    scripts=["scripts/tql", "scripts/kql", "scripts/rank_tls", "scripts/rank_gls"],
     # include_package_data=True,
     # package_data={'': ['*.csv', '*.cfg']},
     keywords=["TESS", "exoplanets", "stars"],

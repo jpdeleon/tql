@@ -3,8 +3,9 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-TESS Quick Look plot generator.
+Transit Quick Look plot generator.
 `tql` handles TESS short cadence (SPOC pipeline) and long cadence ([QLP](http://archive.stsci.edu/hlsp/qlp), [CDIPS](http://archive.stsci.edu/hlsp/cdips), [PATHOS](http://archive.stsci.edu/hlsp/qlp), [DIAmante](http://archive.stsci.edu/hlsp/diamante), and custom) light curves.
+`kql` handles K2 short cadence (SPOC pipeline) and long cadence ([EVEREST](https://archive.stsci.edu/hlsp/everest), [K2SFF](https://archive.stsci.edu/hlsp/)). 
 Note that [chronos](https://github.com/jpdeleon/chronos) is a dependency.
 
 ## Run at Google colab
