@@ -22,8 +22,7 @@ from astroquery.skyview import SkyView
 from wotan import flatten
 from wotan import t14 as estimate_transit_duration
 from transitleastsquares import transitleastsquares as tls
-import deepdish as dd
-
+import flammkuchen as fk
 from chronos.gls import Gls
 from chronos.k2 import K2, Everest, K2sff
 from chronos.plot import plot_gaia_sources_on_tpf, plot_gaia_sources_on_survey
@@ -751,7 +750,7 @@ def plot_kql(
         if savetls:
             tls_results["gaiaid"] = l.gaiaid
             tls_results["epicid"] = l.epicid
-            dd.io.save(fp + "_tls.h5", tls_results)
+            fk.save(fp + "_tls.h5", tls_results)
             msg += f"Saved: {fp}_tls.h5\n"
 
         msg += f"#----------Runtime: {end-start:.2f} s----------#\n"

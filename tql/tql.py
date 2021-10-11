@@ -22,7 +22,7 @@ from astroquery.skyview import SkyView
 from wotan import flatten
 from wotan import t14 as estimate_transit_duration
 from transitleastsquares import transitleastsquares as tls
-import deepdish as dd
+import flammkuchen as fk
 
 from chronos.gls import Gls
 from chronos.lightcurve import ShortCadence, LongCadence
@@ -774,7 +774,7 @@ def plot_tql(
             target_name = "TOI "+l.target_name.split(" ")[1].zfill(4)
         fp = os.path.join(
             outdir,
-            f"{target_name.replace(' ','')}_s{str(l.sector).zfill(2)}_{lctype}_{cadence[0]}c",
+            f"{l.target_name.replace(' ','')}_s{str(l.sector).zfill(2)}_{lctype}_{cadence[0]}c",
         )
         fig.tight_layout()  # (pad=0.5, w_pad=0.1, h_pad=0.1)
         if savefig:
@@ -787,7 +787,7 @@ def plot_tql(
         if savetls:
             tls_results["gaiaid"] = l.gaiaid
             tls_results["ticid"] = l.ticid
-            dd.io.save(fp + "_tls.h5", tls_results)
+            fk.save(fp + "_tls.h5", tls_results)
             msg += f"Saved: {fp}_tls.h5\n"
 
         msg += f"#----------Runtime: {end-start:.2f} s----------#\n"
