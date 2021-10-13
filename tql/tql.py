@@ -314,7 +314,7 @@ def plot_tql(
             Rstar, Mstar = 1.0, 1.0
         if verbose:
             print(
-                f"Flattening lightcurve using {flatten_method} with window_length={window_length} d"
+                f"Flattening lightcurve using {flatten_method} with window_length={window_length:.2f} d"
             )
         wflat, wtrend = flatten(
             time,  # Array of time values
@@ -344,7 +344,7 @@ def plot_tql(
         trend.flux = wtrend[~idx]
         flat.flux = wflat[~idx]
         _ = lc.scatter(ax=ax, label="raw")
-        trend.plot(ax=ax, label=f"trend\nmethod={flatten_method} (window_size={window_length})", lw=1, c="r")
+        trend.plot(ax=ax, label=f"trend\nmethod={flatten_method}\n(window_size={window_length:.2f})", lw=1, c="r")
 
         # +++++++++++++++++++++ax2 Lomb-scargle periodogram
         ax = fig.add_subplot(3, 3, 2)
@@ -460,7 +460,7 @@ def plot_tql(
             n_transits_min=2,  # default
         )
 
-        label = f"peak={tls_results.period:.3}"
+        label = f"peak={tls_results.period:.3f}"
         ax.axvline(tls_results.period, alpha=0.4, lw=3, label=label)
         ax.set_xlim(np.min(tls_results.periods), np.max(tls_results.periods))
 
