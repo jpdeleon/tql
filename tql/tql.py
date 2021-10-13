@@ -71,7 +71,7 @@ def plot_tql(
     quality_bitmask="default",
     apply_data_quality_mask=False,
     flatten_method="biweight",
-    window_length=0.5,  # deprecated for lk's flatten in ncadences
+    window_length=None,  # deprecated for lk's flatten in ncadences
     Porb_limits=None,
     use_star_priors=False,
     edge_cutoff=0.1,
@@ -111,7 +111,7 @@ def plot_tql(
         wotan flatten method (default=biweight); See:
         https://wotan.readthedocs.io/en/latest/Interface.html#module-flatten.flatten
     window_length : float
-        length in days of the filter window (default=0.5; overridden by use_star_priors)
+        length in days of the filter window (default=3xtdur if TOI else 0.5; overridden by use_star_priors)
     sigma_clip_before : tuple
         sigma_lower & sigma_upper for outlier rejection before flattening (default=5,5)
     sigma_clip_flat : tuple
@@ -282,6 +282,11 @@ def plot_tql(
             )
         )
         # estimate long term trend with long window
+        if window_length is None:
+            if l.toi_duration is None:
+                window_length=0.5
+            else:
+                window_length=l.toi_duration*3/24
         flat, trend = lc.flatten(
             window_length=101, return_trend=True
         )  # flat and trend here are just place-holder

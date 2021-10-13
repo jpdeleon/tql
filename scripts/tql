@@ -97,7 +97,7 @@ parser.add_argument(
     "--window_length",
     type=float,
     help="flatten method window length (default=0.5 days)",
-    default=0.5,
+    default=None,
 )
 parser.add_argument(
     "-e",
