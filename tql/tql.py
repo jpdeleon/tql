@@ -57,6 +57,7 @@ def plot_tql(
     gaiaid=None,
     toiid=None,
     ticid=None,
+    ephem_mask=None,
     coords=None,
     name=None,
     sector=None,
@@ -94,6 +95,8 @@ def plot_tql(
     f"""
     Parameters
     ----------
+    ephem_mask : list
+        transit mask given (period, t0, tdur); default=None
     cadence : str
         short (default), long
     lctype : str
@@ -137,10 +140,6 @@ def plot_tql(
     * removes scattered light subtraction + TESSPld
     * uses wotan's biweight to flatten lightcurve
     * uses TLS to search for transit signals
-
-    TODO:
-    * rescale x-axis of phase-folded lc in days
-    * add phase offset in lomb scargle plot
     """
     start = timer()
     if Porb_limits is not None:
@@ -274,6 +273,10 @@ def plot_tql(
 
         # +++++++++++++++++++++ax: Raw + trend
         ax = fig.add_subplot(3, 3, 1)
+        if verbose:
+            print(
+                f"Applying sigma clip on raw lc with (lower,upper)=({sigma_clip_raw})"
+            )
         lc = (
             lc.normalize()
             .remove_nans()
@@ -329,7 +332,7 @@ def plot_tql(
         # f > np.median(f) + 5 * np.std(f)
         if verbose and sigma_clip_flat is not None:
             print(
-                f"Applying sigma clip with (lower,upper)=({sigma_clip_flat})"
+                f"Applying sigma clip on flattened lc with (lower,upper)=({sigma_clip_flat})"
             )
             idx = sigma_clip(
                 wflat,
@@ -351,17 +354,33 @@ def plot_tql(
         baseline = int(time[-1] - time[0])
         Prot_max = baseline / 2
 
-        if l.toi_params is not None:
+        label=""
+        print_tmask = True
+        if ephem_mask is not None:
+            pmask, t0mask, tdurmask = ephem_mask[0], ephem_mask[1], ephem_mask[2]
+            ephem_source = 'user input'
             tmask = get_transit_mask(
                 lc,
-                period=l.toi_period,
-                epoch=l.toi_epoch - TESS_TIME_OFFSET,
-                duration_hours=l.toi_duration,
+                period=pmask,
+                epoch=t0mask - TESS_TIME_OFFSET,
+                duration_hours=tdurmask,
             )
-            label = "masked & "
         else:
-            tmask = np.zeros_like(time, dtype=bool)
-            label = ""
+            if l.toi_params is not None:
+                pmask, t0mask, tdurmask = l.toi_period, l.toi_epoch, l.toi_duration
+                ephem_source = 'TOI'
+                tmask = get_transit_mask(
+                    lc,
+                    period=pmask,
+                    epoch=t0mask - TESS_TIME_OFFSET,
+                    duration_hours=tdurmask,
+                )
+            else:
+                print_mask = False
+                tmask = np.zeros_like(time, dtype=bool)
+        if verbose & print_tmask:
+            label="masked & "
+            print(f"Masking transits  in raw lc given (P, t0, tdur)=({pmask:.4f} d, {t0mask:.4f} d, {tdurmask:.2f} hr) from {ephem_source}")
 
         # detrend lc
         fraction = lc.time.shape[0] // 10
@@ -441,10 +460,16 @@ def plot_tql(
         period_min = 0.1 if Porb_min is None else Porb_min
         period_max = baseline / 2 if Porb_max is None else Porb_max
         if lctype == "pathos":
-            data = flat.time, flat.flux
+            if ephem_mask is not None:
+                data = flat.time[~tmask], flat.flux[~tmask]
+            else:
+                data = flat.time, flat.flux
         else:
             # err somewhat improves SDE
-            data = flat.time, flat.flux, flat.flux_err
+            if ephem_mask is not None:
+                data = flat.time[~tmask], flat.flux[~tmask], flat[~tmask].flux_err
+            else:
+                data = flat.time, flat.flux, flat.flux_err
         if lctype == "diamante":
             print(
                 "DIAmante pipeline uses multi-sector lcs. It is recommended to limit period search using `Porb_limits`."
@@ -491,6 +516,9 @@ def plot_tql(
         # binned phase folded lc
         nbins = int(round(bin_hr / 24 / cad))
         # transit mask
+        if ephem_mask is not None:
+            flat[tmask].scatter(ax=ax, label="transit mask", c="C2", alpha=0.5, zorder=1)
+        # get new transit mask based on TLS results
         tmask = get_transit_mask(
             flat, tls_results.period, tls_results.T0, tls_results.duration * 24
         )

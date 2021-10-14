@@ -115,9 +115,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "--sigma_clip_flat",
-    type=float,
     help="(sigma_lo,sigma_hi) for outlier rejection after flattening lc",
     nargs=2,
+    type=float,
     default=None,
 )
 parser.add_argument(
@@ -130,7 +130,7 @@ parser.add_argument(
 parser.add_argument(
     "-plims",
     "--period_limits",
-    help="period limits in periodogram search; default=(1, baseline/2) days",
+    help="period limits in TLS periodogram search; default=(0.5, baseline/2) days",
     nargs=2,
     type=float,
     default=None,
@@ -196,6 +196,14 @@ parser.add_argument(
     help="check if target is in variable star catalog",
     default=False,
 )
+parser.add_argument(
+    "-em",
+    "--ephem_mask",
+    help="mask ephemeris given period and t0",
+    nargs=3,
+    type=float,
+    default=None,
+)
 # prints help if no argument supplied
 args = parser.parse_args(None if sys.argv[1:] else ["-h"])
 
@@ -204,6 +212,7 @@ if __name__ == "__main__":
         gaiaid=args.gaia,
         toiid=args.toi,
         ticid=args.tic,
+        ephem_mask=args.ephem_mask,
         coords=args.coords,
         name=args.name,
         search_radius=args.search_radius,
