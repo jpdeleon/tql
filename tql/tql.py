@@ -425,10 +425,10 @@ def plot_tql(
         # +++++++++++++++++++++ax phase-folded at rotation period + sinusoidal model
         ax = fig.add_subplot(3, 3, 3)
         offset = 0.5
-        t_fit = np.linspace(0, 1, 100) - offset
-        y_fit = ls.model(t_fit * best_period - best_period / 2, best_freq)
+        t_fit = np.linspace(-offset, offset, 1000) * best_period
+        y_fit = ls.model(t_fit - best_period/2, best_freq)
         ax.plot(
-            t_fit * best_period,
+            t_fit,
             y_fit,
             "r-",
             lw=3,
@@ -461,15 +461,15 @@ def plot_tql(
         period_max = baseline / 2 if Porb_max is None else Porb_max
         if lctype == "pathos":
             if ephem_mask is not None:
-                data = flat.time[~tmask], flat.flux[~tmask]
+                data = flat.time.value[~tmask], flat.flux.value[~tmask]
             else:
-                data = flat.time, flat.flux
+                data = flat.time.value, flat.flux.value
         else:
             # err somewhat improves SDE
             if ephem_mask is not None:
-                data = flat.time[~tmask], flat.flux[~tmask], flat[~tmask].flux_err
+                data = flat.time.value[~tmask], flat.flux.value[~tmask], flat.flux_err.value[~tmask]
             else:
-                data = flat.time, flat.flux, flat.flux_err
+                data = flat.time.value, flat.flux.value, flat.flux_err.value
         if lctype == "diamante":
             print(
                 "DIAmante pipeline uses multi-sector lcs. It is recommended to limit period search using `Porb_limits`."
@@ -517,12 +517,12 @@ def plot_tql(
         nbins = int(round(bin_hr / 24 / cad))
         # transit mask
         if ephem_mask is not None:
-            flat[tmask].scatter(ax=ax, label="transit mask", c="C2", alpha=0.5, zorder=1)
+            flat[tmask].scatter(ax=ax, label="transit mask", c="C2", zorder=1)
         # get new transit mask based on TLS results
         tmask = get_transit_mask(
             flat, tls_results.period, tls_results.T0, tls_results.duration * 24
         )
-        flat[tmask].scatter(ax=ax, label="transit", c="r", alpha=0.5, zorder=1)
+        flat[tmask].scatter(ax=ax, label="transit", c="r", zorder=2)
 
         # +++++++++++++++++++++ax6: phase-folded at orbital period
         ax = fig.add_subplot(3, 3, 6)
@@ -531,13 +531,12 @@ def plot_tql(
         fold.scatter(
             ax=ax, c="k", alpha=alpha, label="folded at Porb", zorder=1
         )
-        fold.bin(nbins).scatter(
+        fold.bin(binsize=nbins).scatter(
             ax=ax, s=30, label=f"{bin_hr}-hr bin", zorder=2
         )
-
         # TLS transit model
         ax.plot(
-            tls_results.model_folded_phase - offset,
+            (tls_results.model_folded_phase - offset)*tls_results.period,
             tls_results.model_folded_model,
             color="red",
             zorder=3,
@@ -545,30 +544,30 @@ def plot_tql(
         )
         ax.set_xlabel("Phase [days]")
         ax.set_ylabel("Relative flux")
-        width = tls_results.duration / tls_results.period
-        ax.set_xlim(-width * 1.5, width * 1.5)
+        width = tls_results.duration * 1.5
+        ax.set_xlim(-width, width)
         ax.legend()
 
         # +++++++++++++++++++++ax: odd-even
         ax = fig.add_subplot(3, 3, 7)
         yline = tls_results.depth
         fold.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
-        fold[fold.even_mask].bin(nbins).scatter(
+        fold[fold.even_mask].bin(binsize=nbins).scatter(
             label="even", s=30, ax=ax, zorder=2
         )
         ax.plot(
-            tls_results.model_folded_phase - offset,
+            (tls_results.model_folded_phase - offset)*tls_results.period,
             tls_results.model_folded_model,
             color="red",
             zorder=3,
-            label="TLS model",
+            label="TLS model"
         )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
-        fold[fold.odd_mask].bin(nbins).scatter(
+        fold[fold.odd_mask].bin(binsize=nbins).scatter(
             label="odd", s=30, ax=ax, zorder=3
         )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
-        ax.set_xlim(-width * 1.5, width * 1.5)
+        ax.set_xlim(-width, width)
         ax.set_xlabel("Phase [days]")
         ax.legend()
 
@@ -631,7 +630,7 @@ def plot_tql(
             except Exception as e:
                 print(f"{survey} image query failed.\n{e}")
                 # plot gaia sources on tpf
-                ax.clear()
+                # ax.clear()
                 ax = fig.add_subplot(3, 3, 8)
                 _ = plot_gaia_sources_on_tpf(
                     tpf=tpf,

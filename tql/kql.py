@@ -471,7 +471,7 @@ def plot_kql(
         fold.scatter(
             ax=ax, c="k", alpha=alpha, label="folded at Porb", zorder=1
         )
-        fold.bin(nbins).scatter(
+        fold.bin(binsize=nbins).scatter(
             ax=ax, s=30, label=f"{bin_hr}-hr bin", zorder=2
         )
 
@@ -493,7 +493,7 @@ def plot_kql(
         ax = fig.add_subplot(3, 3, 7)
         yline = tls_results.depth
         fold.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
-        fold[fold.even_mask].bin(nbins).scatter(
+        fold[fold.even_mask].bin(binsize=nbins).scatter(
             label="even", s=30, ax=ax, zorder=2
         )
         ax.plot(
@@ -504,7 +504,7 @@ def plot_kql(
             label="TLS model",
         )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
-        fold[fold.odd_mask].bin(nbins).scatter(
+        fold[fold.odd_mask].bin(binsize=nbins).scatter(
             label="odd", s=30, ax=ax, zorder=3
         )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
