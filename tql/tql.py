@@ -418,9 +418,9 @@ def plot_tql(
         gls = Gls(data, Pbeg=0.1, verbose=verbose)
         if run_gls:
             if verbose:
-                print("Running Generalized Lomb-Scargle periodogram")
+                print("Estimating rotation period using Generalized Lomb-Scargle periodogram.")
             # show plot if not saved
-            _ = gls.plot(block=~savefig, figsize=(10, 8))
+            fig2 = gls.plot(block=~savefig, figsize=(10, 8))
 
         # +++++++++++++++++++++ax phase-folded at rotation period + sinusoidal model
         ax = fig.add_subplot(3, 3, 3)
@@ -827,14 +827,16 @@ def plot_tql(
             outdir,
             f"{l.target_name.replace(' ','')}_s{str(l.sector).zfill(2)}_{lctype}_{cadence[0]}c",
         )
+        if ephem_mask is not None:
+            fp+="_tmask"
         fig.tight_layout()  # (pad=0.5, w_pad=0.1, h_pad=0.1)
         if savefig:
             fig.savefig(fp + ".png", bbox_inches="tight")
             msg += f"Saved: {fp}.png\n"
             if run_gls:
-                raise NotImplementedError("To be added soon")
-                # fig2.savefig(fp + "_gls.png", bbox_inches="tight")
-                # msg += f"Saved: {fp}_gls.png\n"
+                # raise NotImplementedError("To be added soon")
+                fig2.savefig(fp + "_gls.png", bbox_inches="tight")
+                msg += f"Saved: {fp}_gls.png\n"
         if savetls:
             tls_results["gaiaid"] = l.gaiaid
             tls_results["ticid"] = l.ticid
