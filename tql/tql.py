@@ -317,7 +317,7 @@ def plot_tql(
             Rstar, Mstar = 1.0, 1.0
         if verbose:
             print(
-                f"Flattening lightcurve using {flatten_method} with window_length={window_length:.2f} d"
+                f"Flattening lightcurve using {flatten_method} with window_length={window_length:.2f} d."
             )
         wflat, wtrend = flatten(
             time,  # Array of time values
@@ -380,7 +380,7 @@ def plot_tql(
                 tmask = np.zeros_like(time, dtype=bool)
         if verbose & print_tmask:
             label="masked & "
-            print(f"Masking transits  in raw lc given (P, t0, tdur)=({pmask:.4f} d, {t0mask:.4f} d, {tdurmask:.2f} hr) from {ephem_source}")
+            print(f"Masking transits  in raw lc given (P, t0, tdur)=({pmask:.4f} d, {t0mask:.4f} d, {tdurmask:.2f} hr) from {ephem_source}.")
 
         # detrend lc
         fraction = lc.time.shape[0] // 10
@@ -392,7 +392,7 @@ def plot_tql(
         # dlc = lc.copy()
         # dlc.flux = detrend(lc.flux, bp=len(lc.flux)//2)+1
         if verbose:
-            print("Estimating rotation period using Lomb-Scargle periodogram")
+            print("Estimating rotation period using Lomb-Scargle periodogram.")
         ls = LombScargle(dlc.time[~tmask], dlc.flux[~tmask])
         frequencies, powers = ls.autopower(
             minimum_frequency=1.0 / Prot_max, maximum_frequency=2.0  # 0.5 day
@@ -630,6 +630,24 @@ def plot_tql(
                 )
             except Exception as e:
                 print(f"{survey} image query failed.\n{e}")
+                # plot gaia sources on tpf
+                ax.clear()
+                ax = fig.add_subplot(3, 3, 8)
+                _ = plot_gaia_sources_on_tpf(
+                    tpf=tpf,
+                    target_gaiaid=l.gaiaid,
+                    gaia_sources=l.gaia_sources,
+                    kmax=1,
+                    depth=1 - tls_results.depth,
+                    sap_mask=l.sap_mask,
+                    aper_radius=l.aper_radius,
+                    threshold_sigma=l.threshold_sigma,
+                    percentile=l.percentile,
+                    cmap=tpf_cmap,
+                    dmag_limit=8,
+                    verbose=verbose,
+                    ax=ax,
+                )
         else:
             # plot gaia sources on tpf
             ax = fig.add_subplot(3, 3, 8)
