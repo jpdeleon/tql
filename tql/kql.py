@@ -271,7 +271,7 @@ def plot_kql(
         flat, trend = lc.flatten(
             window_length=101, return_trend=True
         )  # flat and trend here are just place-holder
-        time, flux = lc.time, lc.flux
+        time, flux = lc.time.value, lc.flux.value
         if use_star_priors:
             # for wotan and tls.power
             print(
@@ -352,7 +352,7 @@ def plot_kql(
             window_length=fraction, polyorder=1, break_tolerance=10, mask=tmask
         ).normalize()
         # dlc = lc.copy()
-        # dlc.flux = detrend(lc.flux, bp=len(lc.flux)//2)+1
+        # dlc.flux = detrend(lc.flux.value, bp=len(lc.flux.value)//2)+1
         if verbose:
             print("Estimating rotation period using Lomb-Scargle periodogram")
         ls = LombScargle(dlc.time[~tmask], dlc.flux[~tmask])
@@ -372,7 +372,7 @@ def plot_kql(
         ax.set_xlabel("Period [days]")
         ax.set_ylabel("Lomb-Scargle Power")
 
-        data = (dlc.time[~tmask], dlc.flux[~tmask], dlc.flux_err[~tmask])
+        data = (dlc.time.value[~tmask], dlc.flux.value[~tmask], dlc.flux_err.value[~tmask])
         gls = Gls(data, Pbeg=0.1, verbose=verbose)
         if run_gls:
             if verbose:
@@ -399,8 +399,8 @@ def plot_kql(
         # plot phase-folded lc with masked transits
         a = ax.scatter(
             (phase * best_period)[~tmask],
-            dlc.flux[~tmask],
-            c=dlc.time[~tmask],
+            dlc.flux.value[~tmask],
+            c=dlc.time.value[~tmask],
             label=label,
             cmap=pl.get_cmap("Blues"),
         )

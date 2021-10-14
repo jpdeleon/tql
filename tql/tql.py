@@ -133,7 +133,7 @@ def plot_tql(
     find_cluster : bool
         find if target is in cluster (default=False)
     use_archival_image : bool
-        plot nearby gaia sources on archival image instead of tpf (default=False)
+        plot nearby gaia sources on archival image instead of TPF (default=False)
     check_if_variable : bool
         check if target is in variable star catalog (default=False)
     Notes:
@@ -293,7 +293,7 @@ def plot_tql(
         flat, trend = lc.flatten(
             window_length=101, return_trend=True
         )  # flat and trend here are just place-holder
-        time, flux = lc.time, lc.flux
+        time, flux = lc.time.value, lc.flux.value
         if use_star_priors:
             # for wotan and tls.power
             print(
@@ -376,24 +376,24 @@ def plot_tql(
                     duration_hours=tdurmask,
                 )
             else:
-                print_mask = False
+                print_tmask = False
                 tmask = np.zeros_like(time, dtype=bool)
         if verbose & print_tmask:
-            label="masked & "
-            print(f"Masking transits  in raw lc given (P, t0, tdur)=({pmask:.4f} d, {t0mask:.4f} d, {tdurmask:.2f} hr) from {ephem_source}.")
+            label="transit masked & "
+            print(f"Masking transits in raw lc given (P, t0, tdur)=({pmask:.4f} d, {t0mask:.4f} d, {tdurmask:.2f} hr) from {ephem_source}.")
 
         # detrend lc
-        fraction = lc.time.shape[0] // 10
+        fraction = lc.time.value.shape[0] // 10
         if fraction % 2 == 0:
             fraction += 1  # add 1 if even
         dlc = lc.flatten(
             window_length=fraction, polyorder=1, break_tolerance=10, mask=tmask
         ).normalize()
         # dlc = lc.copy()
-        # dlc.flux = detrend(lc.flux, bp=len(lc.flux)//2)+1
+        # dlc.flux = detrend(lc.flux.value, bp=len(lc.flux.value)//2)+1
         if verbose:
             print("Estimating rotation period using Lomb-Scargle periodogram.")
-        ls = LombScargle(dlc.time[~tmask], dlc.flux[~tmask])
+        ls = LombScargle(dlc.time.value[~tmask], dlc.flux.value[~tmask])
         frequencies, powers = ls.autopower(
             minimum_frequency=1.0 / Prot_max, maximum_frequency=2.0  # 0.5 day
         )
@@ -412,9 +412,9 @@ def plot_tql(
 
         if lctype == "pathos":
             # pathos do not have flux_err
-            data = (dlc.time[~tmask], dlc.flux[~tmask])
+            data = (dlc.time.value[~tmask], dlc.flux.value[~tmask])
         else:
-            data = (dlc.time[~tmask], dlc.flux[~tmask], dlc.flux_err[~tmask])
+            data = (dlc.time.value[~tmask], dlc.flux.value[~tmask], dlc.flux_err.value[~tmask])
         gls = Gls(data, Pbeg=0.1, verbose=verbose)
         if run_gls:
             if verbose:
@@ -441,8 +441,8 @@ def plot_tql(
         # plot phase-folded lc with masked transits
         a = ax.scatter(
             (phase * best_period)[~tmask],
-            dlc.flux[~tmask],
-            c=dlc.time[~tmask],
+            dlc.flux.value[~tmask],
+            c=dlc.time.value[~tmask],
             label=label,
             cmap=pl.get_cmap("Blues"),
         )
@@ -681,10 +681,10 @@ def plot_tql(
 
         # +++++++++++++++++++++ax: summary
         # add details to tls_results
-        tls_results["time_raw"] = lc.time
-        tls_results["flux_raw"] = lc.flux
-        tls_results["time_flat"] = flat.time
-        tls_results["flux_flat"] = flat.flux
+        tls_results["time_raw"] = lc.time.value
+        tls_results["flux_raw"] = lc.flux.value
+        tls_results["time_flat"] = flat.time.value
+        tls_results["flux_flat"] = flat.flux.value
         tls_results["ticid"] = l.ticid
         tls_results["sector"] = l.sector
         tls_results["cont_ratio"] = l.contratio
