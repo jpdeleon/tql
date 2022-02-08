@@ -139,3 +139,5 @@ $ rank_tls indir
 ## To do
 * find additional planets by iterative masking of transit
 * implement vetting procedure in sec 2.3 of [Heller+2019](https://arxiv.org/pdf/1905.09038.pdf)
+* [opents](https://github.com/hpparvi/opents)
+* [notch filter](https://github.com/arizzuto/Notch_and_LOCoR)
