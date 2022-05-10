@@ -520,7 +520,7 @@ def plot_tql(
             flat[tmask].scatter(ax=ax, label="transit mask", c="C2", alpha=0.5, zorder=1)
         # get new transit mask based on TLS results
         tmask = get_transit_mask(
-            flat, tls_results.period, tls_results.T0, tls_results.duration * 24
+            flat, tls_results.period, tls_results.T0, tls_results.duration*24
         )
         flat[tmask].scatter(ax=ax, label="transit", c="r", alpha=0.5, zorder=1)
 
