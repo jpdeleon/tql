@@ -2,9 +2,18 @@
 [build-system]
 requires = [
     "setuptools>=42",
-    "wheel"
+    "wheel",
+    "flit_core >=3.2,<4"
 ]
-build-backend = "setuptools.build_meta"
+#build-backend = "setuptools.build_meta"
+#https://github.com/jpdeleon/rtd-tutorial/blob/1.0.x/pyproject.toml
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "tql"
+authors = [{name = "jpdeleon", email = "jpdeleon.bsap@gmail.com"}]
+dynamic = ["version", "description"]
+
 #https://ljvmiranda921.github.io/notebook/2018/06/21/precommits-using-black-and-flake8/
 [tool.black]
 line-length = 79

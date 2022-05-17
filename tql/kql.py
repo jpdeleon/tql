@@ -24,6 +24,7 @@ from wotan import t14 as estimate_transit_duration
 from transitleastsquares import transitleastsquares as tls
 import flammkuchen as fk
 from chronos.gls import Gls
+from chronos.star import Star
 from chronos.k2 import K2, Everest, K2sff
 from chronos.plot import plot_gaia_sources_on_tpf, plot_gaia_sources_on_survey
 from chronos.constants import K2_TIME_OFFSET, Kepler_pix_scale
@@ -89,6 +90,7 @@ def plot_kql(
     verbose=True,
     clobber=False,
     check_if_variable=False,
+    estimate_spec_type=False,
 ):
     f"""
     Parameters
@@ -701,9 +703,11 @@ def plot_kql(
         msg += f"Teff={Teff}+/-{eteff} K\n"
         msg += f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + " " * 5
         msg += f"logg={logg:.2f}+/-{tp.e_logg:.2f} cgs\n"
-        msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex\n"
-        # spectype = star.get_spectral_type()
-        # msg += f"SpT: {spectype}\n"
+        msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex " + " " * 5
+        if estimate_spec_type:
+            star = Star(ticid=l.ticid, verbose=False)
+            spectype = star.get_spectral_type()
+            msg += f"SpT={spectype}\n"
         msg += r"$\rho$" + f"star={tp.rho:.2f}+/-{tp.e_rho:.2f} gcc\n"
         if (lctype == "pdcsap") or (lctype == "sap"):
             msg += f"Contamination ratio={tp.contratio:.2f}% (from TIC)\n"

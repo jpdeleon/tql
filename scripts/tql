@@ -204,6 +204,13 @@ parser.add_argument(
     type=float,
     default=None,
 )
+parser.add_argument(
+    "-st",
+    "--spec_type",
+    action="store_true",
+    help="estimate spectral type",
+    default=False,
+)
 # prints help if no argument supplied
 args = parser.parse_args(None if sys.argv[1:] else ["-h"])
 
@@ -244,6 +251,7 @@ if __name__ == "__main__":
         verbose=args.verbose,
         clobber=args.redo,
         check_if_variable=args.check_if_variable,
+        estimate_spec_type=args.spec_type,
     )
     if not args.save:
         pl.show()

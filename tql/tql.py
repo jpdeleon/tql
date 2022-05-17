@@ -26,6 +26,7 @@ import flammkuchen as fk
 
 from chronos.gls import Gls
 from chronos.lightcurve import ShortCadence, LongCadence
+from chronos.star import Star
 from chronos.qlp import QLP
 from chronos.plot import plot_gaia_sources_on_tpf, plot_gaia_sources_on_survey
 from chronos.constants import TESS_TIME_OFFSET, TESS_pix_scale
@@ -72,6 +73,8 @@ def plot_tql(
     quality_bitmask="default",
     apply_data_quality_mask=False,
     flatten_method="biweight",
+    gp_kernel='matern', # squared_exp, matern, periodic, periodic_auto
+    gp_kernel_size=1,
     window_length=None,  # deprecated for lk's flatten in ncadences
     Porb_limits=None,
     use_star_priors=False,
@@ -91,6 +94,7 @@ def plot_tql(
     verbose=True,
     clobber=False,
     check_if_variable=False,
+    estimate_spec_type=False,
 ):
     f"""
     Parameters
@@ -136,6 +140,8 @@ def plot_tql(
         plot nearby gaia sources on archival image instead of tpf (default=False)
     check_if_variable : bool
         check if target is in variable star catalog (default=False)
+    estimate_spec_type : bool
+        estimate spectral type by interpolating Mamajek's table (default=False)
     Notes:
     * removes scattered light subtraction + TESSPld
     * uses wotan's biweight to flatten lightcurve
@@ -323,6 +329,8 @@ def plot_tql(
             time,  # Array of time values
             flux,  # Array of flux values
             method=flatten_method,
+            kernel=gp_kernel,
+            kernel_size=gp_kernel_size,  #FIXME: might be useful for method=gp
             window_length=window_length,  # The length of the filter window in units of ``time``
             edge_cutoff=edge_cutoff,
             break_tolerance=10,  # Split into segments at breaks longer than that
@@ -761,7 +769,7 @@ def plot_tql(
             + " " * 5
         )
         msg += f"Duration={tls_results.duration*24:.2f} hr" + "\n"
-        msg += f"T0={tls_results.T0+TESS_TIME_OFFSET:.4f} BJD" + " " * 10
+        msg += f"T0={tls_results.T0+TESS_TIME_OFFSET:.4f} BJD" + " " * 11
         msg += f"Depth={(1-tls_results.depth)*100:.2f}%\n"
 
         if (lctype == "pdcsap") or (lctype == "sap"):
@@ -769,7 +777,7 @@ def plot_tql(
             msg += f"Rp={Rp_true:.2f} " + r"R$_{\oplus}$ "
             msg += f"= {Rp_true*u.Rearth.to(u.Rjup):.2f}" + r"R$_{\rm{Jup}}$" + "\n"
         else:
-            msg += f"Rp={Rp:.2f} " + r"R$_{\oplus}$" + "(diluted)" + " " * 5
+            msg += f"Rp={Rp:.2f} " + r"R$_{\oplus}$" + "(diluted)" + " " * 10
             msg += f"Rp={Rp_true:.2f} " + r"R$_{\oplus}$" + "(undiluted)\n"
         msg += (
             f"Odd-Even mismatch={tls_results.odd_even_mismatch:.2f}"
@@ -791,9 +799,11 @@ def plot_tql(
         msg += f"Teff={Teff}+/-{eteff} K" + "\n"
         msg += f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + " " * 5
         msg += f"logg={logg:.2f}+/-{tp.e_logg:.2f} cgs\n"
-        msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex\n"
-        # spectype = star.get_spectral_type()
-        # msg += f"SpT: {spectype}\n"
+        msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex "+ " " * 6 
+        if estimate_spec_type:
+            star = Star(ticid=l.ticid, verbose=False)
+            spectype = star.get_spectral_type()
+            msg += f"SpT={spectype}\n"
         msg += r"$\rho$" + f"star={tp.rho:.2f}+/-{tp.e_rho:.2f} gcc\n"
         if (lctype == "pdcsap") or (lctype == "sap"):
             msg += f"Contamination ratio={tp.contratio:.2f}% (from TIC)\n"
