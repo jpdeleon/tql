@@ -15,7 +15,7 @@ To use TQL, first install it using pip:
 Scripts
 -------
 
-``tql`` handles TESS short cadence (`SPOC <https://archive.stsci.edu/hlsp/tess-spoc>`_ pipeline) and long cadence (`QLP <http://archive.stsci.edu/hlsp/qlp>`_), `CDIPS <http://archive.stsci.edu/hlsp/cdips>`_, `PATHOS <http://archive.stsci.edu/hlsp/qlp>`_, `DIAmante <http://archive.stsci.edu/hlsp/diamante>`_, and custom) light curves.
+``tql`` handles TESS short cadence data (from `SPOC <https://archive.stsci.edu/hlsp/tess-spoc>`_ pipeline) and long cadence data (from `QLP <http://archive.stsci.edu/hlsp/qlp>`_, `CDIPS <http://archive.stsci.edu/hlsp/cdips>`_, `PATHOS <http://archive.stsci.edu/hlsp/qlp>`_, `DIAmante <http://archive.stsci.edu/hlsp/diamante>`_, and custom pipelines) light curves.
 ``kql`` handles K2 short cadence (SPOC pipeline) and long cadence (`EVEREST <https://archive.stsci.edu/hlsp/everest>`_, `K2SFF <https://archive.stsci.edu/hlsp/>`_). 
 Note that the `chronos <https://github.com/jpdeleon/chronos>`_ package is a dependency.
 
@@ -96,7 +96,7 @@ Examples
 
 The generated figure shows 9 panels (see plot below):
 
-.. image:: ../img/tql_toi241_archival.png
+.. image:: ../img/TOI241_s02_pdcsap_sc.png
   :width: 600
   :alt: tql output
 
