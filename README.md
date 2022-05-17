@@ -1,4 +1,5 @@
 # TQL
+
 [![Build Status](https://travis-ci.com/jpdeleon/tql.svg?branch=master)](https://travis-ci.com/jpdeleon/tql)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
@@ -9,9 +10,11 @@ Transit Quick Look plot generator.
 Note that [chronos](https://github.com/jpdeleon/chronos) is a dependency.
 
 ## Run at Google colab
+
 <a href="https://colab.research.google.com/github/jpdeleon/tql/blob/master/notebooks/examples.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
 ## Usage
+
 ```shell
 optional arguments:
   -h, --help            show this help message and exit
@@ -78,65 +81,81 @@ optional arguments:
                         mask ephemeris given period and t0
 ```
 
-![img](./tests/TOI/TOI125_s01_pdcsap_sc.png)
-
+![img](./docs/img/TOI241_s02_pdcsap_sc.png)
 
 ## Examples
-1. Show quick look plots of TOI 125 (with details printed in the terminal using -v)
-$ tql -toi 125 -v
+
+1. Show quick look plot of TOI 241.01 with archival image
+
+```shell
+tql -toi 241 -img
+```
 
 The generated figure shows 9 panels (see plot below):
+
 * top row
-  - left: background-subtracted, PLD-corrected lightcurve and trend
-  - middle: lomb-scargle periodogram
-  - right: phase-folded at peak stellar rotation period (if any)
+  * left: background-subtracted, PLD-corrected lightcurve and trend
+  * middle: lomb-scargle periodogram
+  * right: phase-folded at peak stellar rotation period (if any)
 * middle row
-  - left: flattened lightcurve and transit (determined from TLS on the right)
-  - middle: TLS periodogram
-  - right: phase-folded lightcurve at orbital period
+  * left: flattened lightcurve and transit (determined from TLS on the right)
+  * middle: TLS periodogram
+  * right: phase-folded lightcurve at orbital period
 * bottom row
-  - left: phase-folded lightcurve of odd and even transits with transit depth reference
-  - middle: tpf with overlaid TESS aperture and annotated gaia sources
-  - right: summary info
+  * left: phase-folded lightcurve of odd and even transits with transit depth reference
+  * middle: tpf with overlaid TESS aperture and annotated gaia sources
+  * right: summary info
+
+```shell
+tql -tic 52368076 -v -s (uses pdcsap by default)
+tql -toi 125.01 -v  -s -lc sap
+tql -toi 125.01 -v -s -sec 2 (specify sector)
+tql -toi 125 -v  -s -c long (long cadence, custom by default)
+tql -toi 125.01 -v -a pipeline (default aperture)
+tql -toi 125.01 -v -a round -r 1 (round aperture 1 pix in radius)
+tql -toi 125.01 -v -a square -r 2 (square aperture 2 pix in radius)
+tql -toi 125.01 -v -a percentile -perc 90
+tql -toi 125.01 -v -a threshold -t 5
+tql -toi 125.01 -v -a threshold -g (gls periodogram)
+tql -toi 125 -v  -s -c long -lc qlp (Quick Look Pipeline)
+tql -toi 125 -v  -s -c long -lc cdips (CDIPS Pipeline)
+tql -toi 125 -v  -s -c long -lc pathos (PATHOS Pipeline)
 ```
-$ tql -tic 52368076 -v -s (uses pdcsap by default)
-$ tql -toi 125.01 -v  -s -lc sap
-$ tql -toi 125.01 -v -s -sec 2 (specify sector)
-$ tql -toi 125 -v  -s -c long (long cadence, custom by default)
-$ tql -toi 125.01 -v -a pipeline (default aperture)
-$ tql -toi 125.01 -v -a round -r 1 (round aperture 1 pix in radius)
-$ tql -toi 125.01 -v -a square -r 2 (square aperture 2 pix in radius)
-$ tql -toi 125.01 -v -a percentile -perc 90
-$ tql -toi 125.01 -v -a threshold -t 5
-$ tql -toi 125.01 -v -a threshold -g (gls periodogram)
-$ tql -toi 125 -v  -s -c long -lc qlp (Quick Look Pipeline)
-$ tql -toi 125 -v  -s -c long -lc cdips (CDIPS Pipeline)
-$ tql -toi 125 -v  -s -c long -lc pathos (PATHOS Pipeline)
 
 For K2 lightcurves,
-$ kql -name 'k2-95' -v -img -s -lc k2sff -c long              
-$ kql -name 'k2-95' -v -img -s -lc everest -c long              
+```shell
+kql -name 'k2-95' -v -img -s -lc k2sff -c long              
+kql -name 'k2-95' -v -img -s -lc everest -c long              
 ```
 
 ## Advanced usage
+
 If you would like to run tql on a list of TIC IDs (saved as new_tics.txt), then we have to make a batch script named run_tql_new_tics.batch. Its output files containing the plots (*.png) and tls_results (*.h5) will be saved in new_tics directory:
+
+```shell
+cat new_tics.txt | while read tic; do echo tql -tic $tic -pld -s -o ../new_tics; done > run_tql_new_tics.batch
 ```
-$ cat new_tics.txt | while read tic; do echo tql -tic $tic -pld -s -o ../new_tics; done > run_tql_new_tics.batch
-```
+
 To test the Nth line of the batch script,
+
+```shell
+cat run_tql_new_tics.batch | sed -n Np | sh
 ```
-$ cat run_tql_new_tics.batch | sed -n Np | sh
-```
+
 To run all the lines in parallel using N cores (use -j<48 cores so that muscat-ut will not be very slow!),
+
+```shell
+cat run_tql_new_tics.batch | parallel -j N
 ```
-$ cat run_tql_new_tics.batch | parallel -j N
-```
+
 After the batch script is done, we can rank TLS output in terms of SDE using rank_tls script:
-```
-$ rank_tls indir
+
+```shell
+rank_tls indir
 ```
 
 ## To do
+
 * find additional planets by iterative masking of transit
 * implement vetting procedure in sec 2.3 of [Heller+2019](https://arxiv.org/pdf/1905.09038.pdf)
 * [opents](https://github.com/hpparvi/opents)
