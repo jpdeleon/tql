@@ -1,7 +1,7 @@
 API
 ===
 
-.. autosummary::
-   :toctree: generated
+.. toctree:: 
+   :maxdepth: 1
 
    plot_tql

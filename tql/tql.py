@@ -55,9 +55,9 @@ pl.rcParams.update(params)
 
 
 def plot_tql(
+    ticid=None,
     gaiaid=None,
     toiid=None,
-    ticid=None,
     coords=None,
     name=None,
     ephem_mask=None,

@@ -2,8 +2,8 @@ plot_tql
 ========
 
 
-`plot_tql` is the main function that generates the quick look plot.
+The quick look plot is generated using :func:`plot_tql`.
 
-.. autofunction:: tql.plot_tql
+.. autofunction:: plot_tql
 
 
