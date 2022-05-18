@@ -142,10 +142,10 @@ def plot_tql(
         estimate_spec_type (bool, optional): flag to estimate spectral type by interpolating 
             Mamajek's table. Defaults to False.
 
-        .. note::
-            * removes scattered light subtraction + TESSPld
-            * uses wotan's biweight to flatten lightcurve
-            * uses TLS to search for transit signals
+    .. note::
+        * removes scattered light subtraction + TESSPld
+        * uses wotan's biweight to flatten lightcurve
+        * uses TLS to search for transit signals
     """
     start = timer()
     if Porb_limits is not None:
