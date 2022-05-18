@@ -4,4 +4,4 @@ API
 .. autosummary::
    :toctree: generated
 
-   TQL
+   plot_tql

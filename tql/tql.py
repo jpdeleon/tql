@@ -58,9 +58,9 @@ def plot_tql(
     gaiaid=None,
     toiid=None,
     ticid=None,
-    ephem_mask=None,
     coords=None,
     name=None,
+    ephem_mask=None,
     sector=None,
     search_radius=3,
     cadence="short",
@@ -97,55 +97,55 @@ def plot_tql(
     estimate_spec_type=False,
 ):
     f"""
-    Parameters
-    ----------
-    ephem_mask : list
-        transit mask given (period, t0, tdur); default=None
-    cadence : str
-        short (default), long
-    lctype : str
-        short=({SC_TYPES}); long=({LC_TYPES})
-    sap_mask : str
-        short=pipeline (default); long=square,round,threshold,percentile
-    aper_radius : int
-        used for square or round sap_mask for custom lc (default=1 pix)
-    percentile : float
-        used for percentile sap_mask for custom lc (default=90)
-    quality_bitmask : str
-        none, [default], hard, hardest; See
-        https://github.com/KeplerGO/lightkurve/blob/master/lightkurve/utils.py#L135
-    flatten_method : str
-        wotan flatten method (default=biweight); See:
-        https://wotan.readthedocs.io/en/latest/Interface.html#module-flatten.flatten
-    window_length : float
-        length in days of the filter window (default=3xtdur if TOI else 0.5; overridden by use_star_priors)
-    sigma_clip_before : tuple
-        sigma_lower & sigma_upper for outlier rejection before flattening (default=5,5)
-    sigma_clip_flat : tuple
-        sigma_lower & sigma_upper for outlier rejection after flattening (default=None)
-    Porb_limits : tuple
-        orbital period search limits for TLS (default=None)
-    use_star_priors : bool
-        priors to compute t14 for detrending in wotan,
-        limb darkening in tls (default=False)
-    edge_cutoff : float
-        length in days to be cut off each edge of lightcurve (default=0.1)
-    bin_hr : float
-        bin size in hours of folded lightcurves (default=4)
-    run_gls : bool
-        run Generalized Lomb Scargle (default=False)
-    find_cluster : bool
-        find if target is in cluster (default=False)
-    use_archival_image : bool
-        plot nearby gaia sources on archival image instead of tpf (default=False)
-    check_if_variable : bool
-        check if target is in variable star catalog (default=False)
-    estimate_spec_type : bool
-        estimate spectral type by interpolating Mamajek's table (default=False)
-    Notes:
-    * removes scattered light subtraction + TESSPld
-    * uses wotan's biweight to flatten lightcurve
-    * uses TLS to search for transit signals
+    
+    This function generates quick look plots for a given TESS target.
+
+    Args:
+        ticid (int): TIC ID
+        toiid (int, optional): TESS Object of Interest ID.
+        gaiaid (int, optional): Gaia DR2 ID.
+        coords (tuple, optional): RA and Dec of the target in decimal degrees.
+        name (str, optional): Target name parsed by Simbad.
+        ephem_mask (list, optional): mask given (``period``, ``t0``, ``tdur``). Defaults to None.
+        cadence (str, optional): ``short`` or ``long``. Defaults to short.
+        lctype (str, optional): ``short``=({SC_TYPES}) or ``long``=({LC_TYPES}). Defaults to ``pdcsap``.
+        sap_mask (str): ``pipeline`` (default) if lctype=short; `square` (default), ``round``,
+            ``threshold``,``percentile`` if lctype=long.
+        aper_radius (int, optional): used for ``square`` or ``round`` ``sap_mask`` for ``custom`` lc. 
+        Defaults to ``square`` with 1 pix radius.
+        percentile (float, optional): used for percentile ``sap_mask`` for custom lc (default=90)
+        quality_bitmask (str, optional): ``none``, ``hard``, ``hardest``; See `lightkurve doc
+            <https://github.com/KeplerGO/lightkurve/blob/master/lightkurve/utils.py#L135>`_ 
+            for more info. Defaults to ``none``.            
+        flatten_method (str, optional): 
+            ``wotan`` flatten method; See `wotan doc
+            <https://wotan.readthedocs.io/en/latest/Interface.html#module-flatten.flatten>`_
+            for more info. Defaults to ``biweight``.
+        window_length (float, optional): length in days of the filter window. Defaults to 3x``tdur`` 
+            if TOI else 0.5. Overridden by ``use_star_priors``.
+        sigma_clip_before (tuple, optional): ``sigma_lower`` & ``sigma_upper`` for outlier rejection 
+            before flattening. Defaults to (5,5).
+        sigma_clip_flat (tuple, optional): ``sigma_lower`` & ``sigma_upper`` for outlier rejection 
+            after flattening. Defaults to None.
+        Porb_limits (tuple, optional): orbital period search limits for ``TLS``. Defaults to None.
+        use_star_priors (bool, optional): flag to use priors to compute ``tdur`` for detrending in ``wotan``,
+            limb darkening in tls. Defaults to False.
+        edge_cutoff (float, optional): length in days to be cut off each edge of lightcurve. 
+            Defaults to 0.1 day.
+        bin_hr (float, optional): bin size in hours of folded lightcurves. Defaults to 4.
+        run_gls (bool, optional): flag to run Generalized Lomb Scargle. Defaults to False.
+        find_cluster (bool, optional): flag to find if target is in cluster. Defaults to False.
+        use_archival_image (bool, optional): flag to superpose nearby gaia sources on 
+            archival image instead on the tpf. Defaults to False.
+        check_if_variable (bool, optional): flag to check if target is in variable star catalog. 
+            Defaults to False.
+        estimate_spec_type (bool, optional): flag to estimate spectral type by interpolating 
+            Mamajek's table. Defaults to False.
+
+        .. note::
+            * removes scattered light subtraction + TESSPld
+            * uses wotan's biweight to flatten lightcurve
+            * uses TLS to search for transit signals
     """
     start = timer()
     if Porb_limits is not None:

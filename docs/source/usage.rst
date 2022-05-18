@@ -97,7 +97,7 @@ Examples
 The generated figure shows 9 panels (see plot below):
 
 .. image:: ../img/TOI241_s02_pdcsap_sc.png
-  :width: 600
+  :width: 800
   :alt: tql output
 
 * top row
