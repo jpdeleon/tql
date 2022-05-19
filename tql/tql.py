@@ -73,7 +73,7 @@ def plot_tql(
     quality_bitmask="default",
     apply_data_quality_mask=False,
     flatten_method="biweight",
-    gp_kernel='matern', # squared_exp, matern, periodic, periodic_auto
+    gp_kernel="matern",  # squared_exp, matern, periodic, periodic_auto
     gp_kernel_size=1,
     window_length=None,  # deprecated for lk's flatten in ncadences
     Porb_limits=None,
@@ -96,9 +96,7 @@ def plot_tql(
     check_if_variable=False,
     estimate_spec_type=False,
 ):
-    f"""
-    
-    This function generates quick look plots for a given TESS target.
+    f"""This function generates quick look plots for a given TESS target.
 
     Args:
         ticid (int): TIC ID
@@ -109,10 +107,10 @@ def plot_tql(
         ephem_mask (list, optional): mask given (``period``, ``t0``, ``tdur``). Defaults to None.
         cadence (str, optional): ``short`` or ``long``. Defaults to short.
         lctype (str, optional): ``short``=({SC_TYPES}) or ``long``=({LC_TYPES}). Defaults to ``pdcsap``.
-        sap_mask (str): ``pipeline`` (default) if lctype=short; `square` (default), ``round``,
+        sap_mask (str, optional): ``pipeline`` (default) if lctype=short; `square` (default), ``round``,
             ``threshold``,``percentile`` if lctype=long.
         aper_radius (int, optional): used for ``square`` or ``round`` ``sap_mask`` for ``custom`` lc. 
-        Defaults to ``square`` with 1 pix radius.
+            Defaults to ``square`` with 1 pix radius.
         percentile (float, optional): used for percentile ``sap_mask`` for custom lc (default=90)
         quality_bitmask (str, optional): ``none``, ``hard``, ``hardest``; See `lightkurve doc
             <https://github.com/KeplerGO/lightkurve/blob/master/lightkurve/utils.py#L135>`_ 
@@ -123,7 +121,7 @@ def plot_tql(
             for more info. Defaults to ``biweight``.
         window_length (float, optional): length in days of the filter window. Defaults to 3x``tdur`` 
             if TOI else 0.5. Overridden by ``use_star_priors``.
-        sigma_clip_before (tuple, optional): ``sigma_lower`` & ``sigma_upper`` for outlier rejection 
+        sigma_clip_raw (tuple, optional): ``sigma_lower`` & ``sigma_upper`` for outlier rejection 
             before flattening. Defaults to (5,5).
         sigma_clip_flat (tuple, optional): ``sigma_lower`` & ``sigma_upper`` for outlier rejection 
             after flattening. Defaults to None.
@@ -293,9 +291,9 @@ def plot_tql(
         # estimate long term trend with long window
         if window_length is None:
             if l.toi_duration is None:
-                window_length=0.5
+                window_length = 0.5
             else:
-                window_length=l.toi_duration*3/24
+                window_length = l.toi_duration * 3 / 24
         flat, trend = lc.flatten(
             window_length=101, return_trend=True
         )  # flat and trend here are just place-holder
@@ -330,7 +328,7 @@ def plot_tql(
             flux,  # Array of flux values
             method=flatten_method,
             kernel=gp_kernel,
-            kernel_size=gp_kernel_size,  #FIXME: might be useful for method=gp
+            kernel_size=gp_kernel_size,  # FIXME: might be useful for method=gp
             window_length=window_length,  # The length of the filter window in units of ``time``
             edge_cutoff=edge_cutoff,
             break_tolerance=10,  # Split into segments at breaks longer than that
@@ -355,18 +353,27 @@ def plot_tql(
         trend.flux = wtrend[~idx]
         flat.flux = wflat[~idx]
         _ = lc.scatter(ax=ax, label="raw")
-        trend.plot(ax=ax, label=f"trend\nmethod={flatten_method}\n(window_size={window_length:.2f})", lw=1, c="r")
+        trend.plot(
+            ax=ax,
+            label=f"trend\nmethod={flatten_method}\n(window_size={window_length:.2f})",
+            lw=1,
+            c="r",
+        )
 
         # +++++++++++++++++++++ax2 Lomb-scargle periodogram
         ax = fig.add_subplot(3, 3, 2)
         baseline = int(time[-1] - time[0])
         Prot_max = baseline / 2
 
-        label=""
+        label = ""
         print_tmask = True
         if ephem_mask is not None:
-            pmask, t0mask, tdurmask = ephem_mask[0], ephem_mask[1], ephem_mask[2]
-            ephem_source = 'user input'
+            pmask, t0mask, tdurmask = (
+                ephem_mask[0],
+                ephem_mask[1],
+                ephem_mask[2],
+            )
+            ephem_source = "user input"
             tmask = get_transit_mask(
                 lc,
                 period=pmask,
@@ -375,8 +382,12 @@ def plot_tql(
             )
         else:
             if l.toi_params is not None:
-                pmask, t0mask, tdurmask = l.toi_period, l.toi_epoch, l.toi_duration
-                ephem_source = 'TOI'
+                pmask, t0mask, tdurmask = (
+                    l.toi_period,
+                    l.toi_epoch,
+                    l.toi_duration,
+                )
+                ephem_source = "TOI"
                 tmask = get_transit_mask(
                     lc,
                     period=pmask,
@@ -384,11 +395,13 @@ def plot_tql(
                     duration_hours=tdurmask,
                 )
             else:
-                print_mask = False
+                # print_mask = False
                 tmask = np.zeros_like(time, dtype=bool)
         if verbose & print_tmask:
-            label="masked & "
-            print(f"Masking transits  in raw lc given (P, t0, tdur)=({pmask:.4f} d, {t0mask:.4f} d, {tdurmask:.2f} hr) from {ephem_source}.")
+            label = "masked & "
+            print(
+                f"Masking transits  in raw lc given (P, t0, tdur)=({pmask:.4f} d, {t0mask:.4f} d, {tdurmask:.2f} hr) from {ephem_source}."
+            )
 
         # detrend lc
         fraction = lc.time.shape[0] // 10
@@ -426,7 +439,9 @@ def plot_tql(
         gls = Gls(data, Pbeg=0.1, verbose=verbose)
         if run_gls:
             if verbose:
-                print("Estimating rotation period using Generalized Lomb-Scargle periodogram.")
+                print(
+                    "Estimating rotation period using Generalized Lomb-Scargle periodogram."
+                )
             # show plot if not saved
             fig2 = gls.plot(block=~savefig, figsize=(10, 8))
 
@@ -475,7 +490,11 @@ def plot_tql(
         else:
             # err somewhat improves SDE
             if ephem_mask is not None:
-                data = flat.time[~tmask], flat.flux[~tmask], flat[~tmask].flux_err
+                data = (
+                    flat.time[~tmask],
+                    flat.flux[~tmask],
+                    flat[~tmask].flux_err,
+                )
             else:
                 data = flat.time, flat.flux, flat.flux_err
         if lctype == "diamante":
@@ -525,10 +544,12 @@ def plot_tql(
         nbins = int(round(bin_hr / 24 / cad))
         # transit mask
         if ephem_mask is not None:
-            flat[tmask].scatter(ax=ax, label="transit mask", c="C2", alpha=0.5, zorder=1)
+            flat[tmask].scatter(
+                ax=ax, label="transit mask", c="C2", alpha=0.5, zorder=1
+            )
         # get new transit mask based on TLS results
         tmask = get_transit_mask(
-            flat, tls_results.period, tls_results.T0, tls_results.duration*24
+            flat, tls_results.period, tls_results.T0, tls_results.duration * 24
         )
         flat[tmask].scatter(ax=ax, label="transit", c="r", alpha=0.5, zorder=1)
 
@@ -759,11 +780,14 @@ def plot_tql(
         msg += "-" * 30 + "\n"
         # secs = ','.join(map(str, l.all_sectors))
         nsecs = len(l.all_sectors)
-        if nsecs<5:
+        if nsecs < 5:
             msg += f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors}, {lctype.upper()} pipeline)\n"
         else:
             msg += f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors[:nsecs//2]}"
-            msg += "\n"+f"{l.all_sectors[nsecs//2:]}, {lctype.upper()} pipeline)\n"
+            msg += (
+                "\n"
+                + f"{l.all_sectors[nsecs//2:]}, {lctype.upper()} pipeline)\n"
+            )
         msg += (
             f"Period={tls_results.period:.4f}+/-{tls_results.period_uncertainty:.4f} d"
             + " " * 5
@@ -775,7 +799,11 @@ def plot_tql(
         if (lctype == "pdcsap") or (lctype == "sap"):
             # msg += f"Rp={Rp:.2f} " + r"R$_{\oplus}$" + "(diluted)" + " " * 5
             msg += f"Rp={Rp_true:.2f} " + r"R$_{\oplus}$ "
-            msg += f"= {Rp_true*u.Rearth.to(u.Rjup):.2f}" + r"R$_{\rm{Jup}}$" + "\n"
+            msg += (
+                f"= {Rp_true*u.Rearth.to(u.Rjup):.2f}"
+                + r"R$_{\rm{Jup}}$"
+                + "\n"
+            )
         else:
             msg += f"Rp={Rp:.2f} " + r"R$_{\oplus}$" + "(diluted)" + " " * 10
             msg += f"Rp={Rp_true:.2f} " + r"R$_{\oplus}$" + "(undiluted)\n"
@@ -797,9 +825,11 @@ def plot_tql(
             f"Rstar={Rstar:.2f}+/-{Rstar_err:.2f} " + r"R$_{\odot}$" + " " * 5
         )
         msg += f"Teff={Teff}+/-{eteff} K" + "\n"
-        msg += f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + " " * 5
+        msg += (
+            f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + " " * 5
+        )
         msg += f"logg={logg:.2f}+/-{tp.e_logg:.2f} cgs\n"
-        msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex "+ " " * 6 
+        msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex " + " " * 6
         if estimate_spec_type:
             star = Star(ticid=l.ticid, verbose=False)
             spectype = star.get_spectral_type()
@@ -831,14 +861,14 @@ def plot_tql(
         if (l.ticid is not None) & (l.target_name[0] == "("):
             # replace e.g. target_name = (ra, dec) with ticid
             l.target_name = f"TIC {l.ticid}"
-        if l.target_name.split(" ")[0].lower()=="toi":
-            target_name = "TOI "+l.target_name.split(" ")[1].zfill(4)
+        if l.target_name.split(" ")[0].lower() == "toi":
+            target_name = "TOI " + l.target_name.split(" ")[1].zfill(4)
         fp = os.path.join(
             outdir,
             f"{l.target_name.replace(' ','')}_s{str(l.sector).zfill(2)}_{lctype}_{cadence[0]}c",
         )
         if ephem_mask is not None:
-            fp+="_tmask"
+            fp += "_tmask"
         fig.tight_layout()  # (pad=0.5, w_pad=0.1, h_pad=0.1)
         if savefig:
             fig.savefig(fp + ".png", bbox_inches="tight")
