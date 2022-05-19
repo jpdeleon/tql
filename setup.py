@@ -12,12 +12,17 @@ setup(
     author="Jerome de Leon",
     author_email="jpdeleon@astron.s.u-tokyo.ac.jp",
     url="https://github.com/jpdeleon/tql",
-    #license=["GNU GPLv3"],
+    # license=["GNU GPLv3"],
     description="TESS QuickLook plot generator",
     long_description=long_description,
     long_description_content_type="text/markdown",
     # package_dir={"tql": "tql"},
-    scripts=["scripts/tql", "scripts/kql", "scripts/rank_tls", "scripts/rank_gls"],
+    scripts=[
+        "scripts/tql",
+        "scripts/kql",
+        "scripts/rank_tls",
+        "scripts/rank_gls",
+    ],
     # include_package_data=True,
     # package_data={'': ['*.csv', '*.cfg']},
     keywords=["TESS", "exoplanets", "stars"],
@@ -34,13 +39,29 @@ setup(
         "toml",
         "jupytext",
         # 'chronos @ http://github.com/jpdeleon/chronos/tarball/master#egg=chronos'
-        ],
+    ],
     dependency_links=[
         "http://github.com/jpdeleon/chronos/tarball/master#egg=chronos"
     ],
     extras_require={
-    #     "docs": [
-    #         "rtds_action",
-    #     ]
-    }
+        "tests": [
+            "nose",
+            "pytest",
+            "pytest-dependency",
+            "pytest-env",
+            "pytest-cov",
+            "tqdm",
+        ],
+        "docs": [
+            "sphinx>=1.7.5",
+            "pandoc",
+            "jupyter",
+            "jupytext",
+            "nbformat",
+            "nbconvert",
+            "rtds_action",
+            "nbsphinx",
+            "tqdm",
+        ],
+    },
 )
