@@ -27,8 +27,20 @@ setup(
         "Topic :: Scientific/Engineering",
         "Programming Language :: Python",
     ],
-    #install_requires=['chronos @ http://github.com/jpdeleon/chronos/tarball/master#egg=chronos'],
+    install_requires=[
+        "pre-commit",
+        "black",
+        "flake8",
+        "toml",
+        "jupytext",
+        # 'chronos @ http://github.com/jpdeleon/chronos/tarball/master#egg=chronos'
+        ],
     dependency_links=[
         "http://github.com/jpdeleon/chronos/tarball/master#egg=chronos"
     ],
+    extras_require={
+    #     "docs": [
+    #         "rtds_action",
+    #     ]
+    }
 )

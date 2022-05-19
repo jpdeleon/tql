@@ -18,6 +18,9 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
+    # for processing notebooks
+    "nbsphinx",
+    # for readthedocs action
     "rtds_action",
 ]
 
@@ -32,6 +35,7 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
 
 # -- Options for HTML output -------------------------------------------------
+# See https://github.com/rodluger/starry/blob/master/docs/conf.py
 
 html_theme = 'sphinx_rtd_theme'
 html_theme_options = {"display_version": True}
@@ -63,6 +67,7 @@ nbsphinx_execute = "never"
 napoleon_use_ivar = True
 
 # -- rtds_action settings ----------------------------------------------------
+# see additional instructions in https://github.com/dfm/rtds-action
 rtds_action_github_repo = "jpdeleon/tql"
 rtds_action_path = "notebooks"
 rtds_action_artifact_prefix = "notebooks-for-"
