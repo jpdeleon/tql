@@ -38,6 +38,7 @@ setup(
         "flake8",
         "toml",
         "jupytext",
+        "nbsphinx"
         # 'chronos @ http://github.com/jpdeleon/chronos/tarball/master#egg=chronos'
     ],
     dependency_links=[
