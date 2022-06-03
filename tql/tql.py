@@ -273,6 +273,20 @@ def plot_tql(
         if (outdir is not None) & (not os.path.exists(outdir)):
             os.makedirs(outdir)
 
+        if (l.ticid is not None) & (l.target_name[0] == "("):
+            # replace e.g. target_name = (ra, dec) with ticid
+            l.target_name = f"TIC {l.ticid}"
+        if l.target_name.split(" ")[0].lower() == "toi":
+            target_name = "TOI " + l.target_name.split(" ")[1].zfill(4)
+        fp = os.path.join(
+            outdir,
+            f"{l.target_name.replace(' ','')}_s{str(l.sector).zfill(2)}_{lctype}_{cadence[0]}c",
+        )
+        if os.path.exists(fp + ".png") and not clobber:
+            raise FileExistsError(
+                f"{fp+'.png'} already exists! Set clobber=True to overwrite."
+            )
+
         fig = pl.figure()
 
         # +++++++++++++++++++++ax: Raw + trend
@@ -858,15 +872,6 @@ def plot_tql(
         fig.suptitle(title, y=1.01)
         end = timer()
         msg = ""
-        if (l.ticid is not None) & (l.target_name[0] == "("):
-            # replace e.g. target_name = (ra, dec) with ticid
-            l.target_name = f"TIC {l.ticid}"
-        if l.target_name.split(" ")[0].lower() == "toi":
-            target_name = "TOI " + l.target_name.split(" ")[1].zfill(4)
-        fp = os.path.join(
-            outdir,
-            f"{l.target_name.replace(' ','')}_s{str(l.sector).zfill(2)}_{lctype}_{cadence[0]}c",
-        )
         if ephem_mask is not None:
             fp += "_tmask"
         fig.tight_layout()  # (pad=0.5, w_pad=0.1, h_pad=0.1)
