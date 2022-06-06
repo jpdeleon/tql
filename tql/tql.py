@@ -876,9 +876,8 @@ def plot_tql(
         fig.suptitle(title, y=1.01)
         end = timer()
         msg = ""
-        if ephem_mask is not None:
-            fp += "_tmask"
         fig.tight_layout()  # (pad=0.5, w_pad=0.1, h_pad=0.1)
+
         if savefig:
             fig.savefig(fp + ".png", bbox_inches="tight")
             msg += f"Saved: {fp}.png\n"
@@ -886,6 +885,7 @@ def plot_tql(
                 # raise NotImplementedError("To be added soon")
                 fig2.savefig(fp + "_gls.png", bbox_inches="tight")
                 msg += f"Saved: {fp}_gls.png\n"
+
         if savetls:
             tls_results["gaiaid"] = l.gaiaid
             tls_results["ticid"] = l.ticid
