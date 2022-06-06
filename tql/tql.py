@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import sys
 import os
+
+# import gc
 from time import time as timer
 import traceback
 import argparse
@@ -282,6 +284,8 @@ def plot_tql(
             outdir,
             f"{l.target_name.replace(' ','')}_s{str(l.sector).zfill(2)}_{lctype}_{cadence[0]}c",
         )
+        if ephem_mask is not None:
+            fp += "_tmask"
         if os.path.exists(fp + ".png") and not clobber:
             raise FileExistsError(
                 f"{fp+'.png'} already exists! Set clobber=True to overwrite."
@@ -380,7 +384,6 @@ def plot_tql(
         Prot_max = baseline / 2
 
         label = ""
-        print_tmask = True
         if ephem_mask is not None:
             pmask, t0mask, tdurmask = (
                 ephem_mask[0],
@@ -395,6 +398,7 @@ def plot_tql(
                 duration_hours=tdurmask,
             )
         else:
+            pmask, t0mask, tdurmask = None, None, None
             if l.toi_params is not None:
                 pmask, t0mask, tdurmask = (
                     l.toi_period,
@@ -409,8 +413,8 @@ def plot_tql(
                     duration_hours=tdurmask,
                 )
             else:
-                # print_mask = False
                 tmask = np.zeros_like(time, dtype=bool)
+        print_tmask = all(i is not None for i in [pmask, t0mask, tdurmask])
         if verbose & print_tmask:
             label = "masked & "
             print(
