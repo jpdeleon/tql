@@ -51,7 +51,7 @@ setup(
             "pytest-dependency",
             "pytest-env",
             "pytest-cov",
-            "tqdm",
+            #"tqdm",
         ],
         "docs": [
             "sphinx>=1.7.5",
@@ -62,7 +62,7 @@ setup(
             "nbconvert",
             "rtds_action",
             "nbsphinx",
-            "tqdm",
+            #"tqdm",
         ],
     },
 )
