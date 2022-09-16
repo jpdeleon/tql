@@ -159,7 +159,7 @@ rank_tls indir
 ```
 
 ## To do
-
+* implement [deep transit](https://github.com/ckm3/Deep-Transit) detection algorithm
 * find additional planets by iterative masking of transit
 * implement vetting procedure in sec 2.3 of [Heller+2019](https://arxiv.org/pdf/1905.09038.pdf)
 * [opents](https://github.com/hpparvi/opents)
