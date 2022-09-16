@@ -14,6 +14,9 @@ Note that [chronos](https://github.com/jpdeleon/chronos) is a dependency.
 
 <a href="https://colab.research.google.com/github/jpdeleon/tql/blob/master/notebooks/examples.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
+## TQL gallery
+Outputs are available at [tql-gallery](https://jpdeleon.github.io/tql-gallery)
+
 ## Usage
 
 ```shell
