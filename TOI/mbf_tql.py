@@ -2,7 +2,7 @@
 import numpy as np
 import chronos as cr
 
-tois = cr.get_tois(clobber=True, remove_FP=True)
+tois = cr.get_tois(clobber=False, remove_FP=True)
 # spoc = tois.query("Source=='spoc'")
 # qlp = tois.query("Source!='spoc'")
 
@@ -11,12 +11,12 @@ toiids = []
 for k, row in tois.iterrows():
     toi = row.TOI
     toiid = str(toi).split(".")[0]
-    t = f"tql -toi {toiid} -s -v -img"
+    t = f"tql -toi {toiid} -s -v -img -sr 15 --redo "
     if row.Source == "spoc":
         if toiid not in toiids:
             text.append(t)
     else:
-        t += "-c long -lc qlp -img"
+        t += "-c long -lc qlp"
         if toiid not in toiids:
             text.append(t)
     toiids.append(toiid)
