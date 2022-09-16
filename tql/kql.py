@@ -36,7 +36,7 @@ from chronos.utils import (
 )
 
 MISSION = "K2"
-LC_TYPES = ["k2sff","everest"]
+LC_TYPES = ["k2sff", "everest"]
 SC_TYPES = ["pdcsap", "sap", "custom"]
 
 size = 16
@@ -171,7 +171,7 @@ def plot_kql(
             lctype = "everest" if lctype is None else lctype
             errmsg = f"{lctype} is not available in cadence=long"
             assert lctype in LC_TYPES, errmsg
-            if lctype.lower()=='k2sff':
+            if lctype.lower() == "k2sff":
                 lightcurve = K2sff(
                     gaiaDR2id=gaiaid,
                     epicid=epicid,
@@ -180,11 +180,11 @@ def plot_kql(
                     dec_deg=target_coord.dec.deg if target_coord else None,
                     campaign=campaign,
                     quality_bitmask=quality_bitmask,
-                    #apply_data_quality_mask=apply_data_quality_mask,
+                    # apply_data_quality_mask=apply_data_quality_mask,
                     verbose=verbose,
-                    #check_if_variable=check_if_variable,
+                    # check_if_variable=check_if_variable,
                 )
-            elif lctype.lower()=='everest':
+            elif lctype.lower() == "everest":
                 lightcurve = Everest(
                     gaiaDR2id=gaiaid,
                     epicid=epicid,
@@ -193,9 +193,9 @@ def plot_kql(
                     dec_deg=target_coord.dec.deg if target_coord else None,
                     campaign=campaign,
                     quality_bitmask=quality_bitmask,
-                    #apply_data_quality_mask=apply_data_quality_mask,
+                    # apply_data_quality_mask=apply_data_quality_mask,
                     verbose=verbose,
-                    #check_if_variable=check_if_variable,
+                    # check_if_variable=check_if_variable,
                 )
             alpha = 0.5
             bin_hr = 4 if bin_hr is None else bin_hr
@@ -215,14 +215,14 @@ def plot_kql(
                 name=name,
                 campaign=campaign,
                 search_radius=search_radius,
-                #sap_mask=sap_mask,
-                #aper_radius=aper_radius,
-                #threshold_sigma=threshold_sigma,
-                #percentile=percentile,
+                # sap_mask=sap_mask,
+                # aper_radius=aper_radius,
+                # threshold_sigma=threshold_sigma,
+                # percentile=percentile,
                 quality_bitmask=quality_bitmask,
-                #apply_data_quality_mask=apply_data_quality_mask,
+                # apply_data_quality_mask=apply_data_quality_mask,
                 verbose=verbose,
-                #check_if_variable=check_if_variable,
+                # check_if_variable=check_if_variable,
             )
             bin_hr = 0.5 if bin_hr is None else bin_hr
             cad = 2 / 60 / 24
@@ -242,14 +242,14 @@ def plot_kql(
         if lctype == "custom":
             # tpf is also called to make custom lc
             lc = l.make_custom_lc()
-        elif lctype=="sap":
+        elif lctype == "sap":
             # just downloads lightcurvefile
             lc = l.lc_sap
-        elif lctype=="pdcsap":
+        elif lctype == "pdcsap":
             lc = l.lc_pdcsap
-        elif lctype=="everest":
+        elif lctype == "everest":
             lc = l.lc_everest
-        elif lctype=="k2sff":
+        elif lctype == "k2sff":
             lc = l.lc_k2sff
         else:
             errmsg = f"use lctype=[{[SC_TYPES,LC_TYPES]}]"
@@ -701,7 +701,9 @@ def plot_kql(
             f"Rstar={Rstar:.2f}+/-{Rstar_err:.2f} " + r"R$_{\odot}$" + " " * 5
         )
         msg += f"Teff={Teff}+/-{eteff} K\n"
-        msg += f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + " " * 5
+        msg += (
+            f"Mstar={Mstar:.2f}+/-{tp.e_mass:.2f} " + r"M$_{\odot}$" + " " * 5
+        )
         msg += f"logg={logg:.2f}+/-{tp.e_logg:.2f} cgs\n"
         msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex " + " " * 5
         if estimate_spec_type:
@@ -732,13 +734,14 @@ def plot_kql(
         fig.suptitle(title, y=1.01)
         end = timer()
         msg = ""
+        target_name = l.target_name
         if (l.epicid is not None) & (l.target_name[0] == "("):
             # replace e.g. target_name = (ra, dec) with epicid
             l.target_name = f"EPIC {l.epicid}"
-        if l.target_name.split("-")[0].lower()=="k2":
-            target_name = "K2 "+l.target_name.split("-")[1]
-        elif l.target_name.split(" ")[0].lower():
-            target_name = "K2 "+l.target_name.split(" ")[1]
+        if l.target_name.split("-")[0].lower() == "k2":
+            target_name = "K2 " + l.target_name.split("-")[1]
+        elif l.target_name.split(" ")[0].lower() == "k2":
+            target_name = "K2 " + l.target_name.split(" ")[1]
         fp = os.path.join(
             outdir,
             f"{target_name.replace(' ','')}_s{str(l.campaign).zfill(2)}_{lctype}_{cadence[0]}c",
