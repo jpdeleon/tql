@@ -638,6 +638,7 @@ def plot_tql(
         if (l.gaia_sources is None) or (nearby_gaia_radius != 120):
             _ = l.query_gaia_dr2_catalog(radius=nearby_gaia_radius)
         # _ = plot_orientation(tpf, ax)
+
         if use_archival_image:
             try:
                 survey = "DSS2 Red"
@@ -723,8 +724,13 @@ def plot_tql(
                 percentile=l.percentile,
                 threshold_sigma=l.threshold_sigma,
             )
-            fluxes = get_fluxes_within_mask(tpf, l.aper_mask, l.gaia_sources)
-            l.contratio = sum(fluxes) - 1  # c.f. l.tic_params.contratio
+            if np.any(l.aper_mask) > 0:
+                fluxes = get_fluxes_within_mask(
+                    tpf, l.aper_mask, l.gaia_sources
+                )
+                l.contratio = sum(fluxes) - 1  # c.f. l.tic_params.contratio
+            else:
+                l.contratio = np.nan
 
         # +++++++++++++++++++++ax: summary
         # add details to tls_results
