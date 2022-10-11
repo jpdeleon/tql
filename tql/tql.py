@@ -97,6 +97,7 @@ def plot_tql(
     clobber=False,
     check_if_variable=False,
     estimate_spec_type=False,
+    estimate_gyro_age=False,
 ):
     f"""This function generates quick look plots for a given TESS target.
 
@@ -233,6 +234,7 @@ def plot_tql(
         if verbose:
             print(f"Analyzing {cadence} cadence data with {sap_mask} mask.")
         l = lightcurve
+        l.star = None
         if l.gaia_params is None:
             _ = l.query_gaia_dr2_catalog(return_nearest_xmatch=True)
         if l.tic_params is None:
@@ -855,9 +857,29 @@ def plot_tql(
         msg += f"logg={logg:.2f}+/-{tp.e_logg:.2f} cgs\n"
         msg += f"met={met:.2f}+/-{tp.e_MH:.2f} dex " + " " * 6
         if estimate_spec_type:
-            star = Star(ticid=l.ticid, verbose=False)
-            spectype = star.get_spectral_type()
-            msg += f"SpT={spectype}\n"
+            if l.star is None:
+                l.star = Star(ticid=l.ticid, verbose=False)
+                spectype = l.star.get_spectral_type()
+                msg += f"SpT={spectype}\n"
+        if estimate_gyro_age:
+            if l.star is None:
+                l.star = Star(ticid=l.ticid, verbose=False)
+            try:
+                # get gyro age
+                prot, prot_err = gls.hpstat["P"], gls.hpstat["e_P"]
+                age, age_plus, age_minus = l.star.get_age(
+                    method="prot",
+                    prot=(prot, prot_err),
+                    return_samples=False,
+                    plot=False,
+                )
+                msg += f"Prot={prot:.2f}+/-{prot_err:.2f} d" + "\n"
+                msg += (
+                    f"gyro age = {age/1e6:.2f} + {age_plus/1e6:.2f} - {age_minus/1e6:.2f} Myr"
+                    + "\n"
+                )
+            except Exception as e:
+                print(f"Error: {e}")
         msg += r"$\rho$" + f"star={tp.rho:.2f}+/-{tp.e_rho:.2f} gcc\n"
         if (lctype == "pdcsap") or (lctype == "sap"):
             msg += f"Contamination ratio={tp.contratio:.2f}% (from TIC)\n"

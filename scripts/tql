@@ -211,6 +211,13 @@ parser.add_argument(
     help="estimate spectral type",
     default=False,
 )
+parser.add_argument(
+    "-age",
+    "--gyro_age",
+    action="store_true",
+    help="estimate spectral type",
+    default=False,
+)
 # prints help if no argument supplied
 args = parser.parse_args(None if sys.argv[1:] else ["-h"])
 
@@ -252,6 +259,7 @@ if __name__ == "__main__":
         clobber=args.redo,
         check_if_variable=args.check_if_variable,
         estimate_spec_type=args.spec_type,
+        estimate_gyro_age=args.gyro_age,
     )
     if not args.save:
         pl.show()
