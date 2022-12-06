@@ -605,7 +605,7 @@ def plot_tql(
         # )
         # ax.set_xlabel("Phase [days]")
         # ax.set_ylabel("Relative flux")
-        width = tls_results.duration / tls_results.period
+        # width = tls_results.duration / tls_results.period
         # ax.set_xlim(-width * 1.5, width * 1.5)
         # ax.legend()
 
@@ -628,7 +628,10 @@ def plot_tql(
             label="odd transit", s=30, ax=ax, zorder=3
         )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
-        ax.set_xlim(-width * 1.5, width * 1.5)
+        t14 = tls_results.duration
+        ax.set_xlim(-t14, t14)
+        ax.axvline(-t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
+        ax.axvline(t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
         ax.set_xlabel("Phase [days]")
         ax.legend()
 
@@ -650,22 +653,8 @@ def plot_tql(
             c="k",
             ls="--",
         )
-        ax.axvline(
-            0.5 - tls_results.duration / 2,
-            0,
-            1,
-            label="__nolegend__",
-            c="k",
-            ls="--",
-        )
-        ax.axvline(
-            0.5 + tls_results.duration / 2,
-            0,
-            1,
-            label="__nolegend__",
-            c="k",
-            ls="--",
-        )
+        ax.axvline(0.5 - t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
+        ax.axvline(0.5 + t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
         """
         Similar to Mayo+2018, we computed `secthresh` by binning the phase-folded 
         lightcurves by measuring the transit duration and taking thrice the value 
@@ -673,7 +662,9 @@ def plot_tql(
         """
         means = []
         start, end = 0, 1
-        chunks = np.arange(start, end, width)
+        chunks = np.arange(
+            start, end, tls_results.duration / tls_results.period
+        )
         for n, x in enumerate(chunks):
             if n == 0:
                 x1 = start
@@ -692,10 +683,7 @@ def plot_tql(
         fold2.bin(nbins).scatter(
             ax=ax, s=30, label=f"secthresh={secthresh*1e3:.2f} ppt", zorder=2
         )
-        ax.set_xlim(
-            0.5 - tls_results.duration / 2 * 1.3,
-            0.5 + tls_results.duration / 2 * 1.3,
-        )
+        ax.set_xlim(0.5 - t14, 0.5 + t14)
         ax.set_xlabel("Phase [days]")
         ax.legend()
 
