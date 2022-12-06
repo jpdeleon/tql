@@ -533,17 +533,6 @@ def plot_tql(
             n_transits_min=2,  # default
         )
 
-        # if l.toi_params["Depth (ppm)"] is None:
-        #     per = tls_results.period
-        #     t0 = tls_results.T0
-        #     depth = 1-tls_results.depth
-        #     t14 = tls_results.duration
-        # else:
-        #     per = l.toi_params["Period (days)"]
-        #     t0 = l.toi_params["Epoch (BJD)"]
-        #     t14 = l.toi_params["Duration (hours)"]/24
-        #     depth = l.toi_params["Depth (ppm)"]/1e6
-
         label = f"peak={tls_results.period:.3f}"
         ax.axvline(tls_results.period, alpha=0.4, lw=3, label=label)
         ax.set_xlim(np.min(tls_results.periods), np.max(tls_results.periods))
@@ -610,33 +599,36 @@ def plot_tql(
         # ax.legend()
 
         # +++++++++++++++++++++ax: odd-even
-        ax = fig.add_subplot(3, 3, 6)
+        ax = fig.add_subplot(3, 3, 7)
         yline = tls_results.depth
-        fold.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
+        fold.scatter(
+            ax=ax, marker=".", c="k", alpha=alpha, label="_nolegend_", zorder=1
+        )
         fold[fold.even_mask].bin(nbins).scatter(
-            label="even transit", s=30, ax=ax, zorder=2
+            label="even transit", c="#1f77b4", s=30, ax=ax, zorder=2
+        )
+        fold[fold.odd_mask].bin(nbins).scatter(
+            label="odd transit", c="#d62728", s=30, ax=ax, zorder=3
         )
         ax.plot(
             tls_results.model_folded_phase - offset,
             tls_results.model_folded_model,
-            color="red",
+            "-k",
+            lw=3,
             zorder=3,
             label="TLS model",
         )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
-        fold[fold.odd_mask].bin(nbins).scatter(
-            label="odd transit", s=30, ax=ax, zorder=3
-        )
-        ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
         t14 = tls_results.duration
-        ax.set_xlim(-t14, t14)
         ax.axvline(-t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
         ax.axvline(t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
         ax.set_xlabel("Phase [days]")
+        ax.set_xlim(-t14, t14)
+        # y1, y2 = ax.get_ylim()
         ax.legend()
 
         # +++++++++++++++++++++ax: secondary eclipse
-        ax = fig.add_subplot(3, 3, 7)
+        ax = fig.add_subplot(3, 3, 8)
         # mask transit and shift phase
         fold2 = flat[~tmask].fold(
             period=tls_results.period,
@@ -656,7 +648,7 @@ def plot_tql(
         ax.axvline(0.5 - t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
         ax.axvline(0.5 + t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
         """
-        Similar to Mayo+2018, we computed `secthresh` by binning the phase-folded 
+        Similar to Mayo+2018, compute `secthresh` by binning the phase-folded 
         lightcurves by measuring the transit duration and taking thrice the value 
         of the standard deviation of the mean in each bin. 
         """
@@ -680,11 +672,13 @@ def plot_tql(
             # print(mean)
             means.append(mean)
         secthresh = 3 * np.nanstd(means)
+        fold2.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
         fold2.bin(nbins).scatter(
             ax=ax, s=30, label=f"secthresh={secthresh*1e3:.2f} ppt", zorder=2
         )
-        ax.set_xlim(0.5 - t14, 0.5 + t14)
         ax.set_xlabel("Phase [days]")
+        ax.set_xlim(0.5 - t14, 0.5 + t14)
+        # ax.set_ylim(y1, y2)
         ax.legend()
 
         # +++++++++++++++++++++ax7: tpf
@@ -728,7 +722,7 @@ def plot_tql(
                     errmsg = "SkyView returned empty result. Try a different survey."
                     raise ValueError(errmsg)
                 # plot gaia sources on archival image
-                ax = fig.add_subplot(3, 3, 8, projection=WCS(hdu.header))
+                ax = fig.add_subplot(3, 3, 6, projection=WCS(hdu.header))
                 _ = plot_gaia_sources_on_survey(
                     tpf=tpf,
                     target_gaiaid=l.gaiaid,
@@ -748,7 +742,7 @@ def plot_tql(
                 print(f"{survey} image query failed.\n{e}")
                 # plot gaia sources on tpf
                 ax.clear()
-                ax = fig.add_subplot(3, 3, 8)
+                ax = fig.add_subplot(3, 3, 6)
                 _ = plot_gaia_sources_on_tpf(
                     tpf=tpf,
                     target_gaiaid=l.gaiaid,
@@ -766,7 +760,7 @@ def plot_tql(
                 )
         else:
             # plot gaia sources on tpf
-            ax = fig.add_subplot(3, 3, 8)
+            ax = fig.add_subplot(3, 3, 6)
             _ = plot_gaia_sources_on_tpf(
                 tpf=tpf,
                 target_gaiaid=l.gaiaid,
@@ -956,7 +950,7 @@ def plot_tql(
             title = f"TOI {l.toiid} | TIC {l.ticid} (sector {l.sector})"
             if l.toi_params["Comments"]:
                 comment = f"Comment: {l.toi_params['Comments']}"
-                msg += "\n".join(textwrap.wrap(comment, 60))
+                msg += "\n".join(textwrap.wrap(comment, 50))
         else:
             title = f"TIC {l.ticid} (sector {l.sector})"
 

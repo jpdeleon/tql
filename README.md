@@ -104,10 +104,10 @@ The generated figure shows 9 panels (see plot below):
 * middle row
   * left: flattened lightcurve and transit (determined from TLS on the right)
   * middle: TLS periodogram
-  * right: phase-folded lightcurve at orbital period of odd and even transits with transit depth reference
+  * right: tpf with overlaid TESS aperture and annotated gaia sources
 * bottom row
-  * left: phase-folded lightcurve zoomed at phase 0.5 to see secondary eclipse
-  * middle: tpf with overlaid TESS aperture and annotated gaia sources
+  * left: phase-folded lightcurve at orbital period of odd and even transits with transit depth referenceeclipse
+  * middle: phase-folded lightcurve zoomed at phase 0.5 to see secondary 
   * right: summary info
 
 ```shell
