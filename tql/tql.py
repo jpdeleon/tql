@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys
 import os
+import textwrap
 
 # import gc
 from time import time as timer
@@ -640,7 +641,15 @@ def plot_tql(
         )
         fold2.time = fold2.time + 0.5
         fold2.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
-        ax.axhline(yline, 0, 1, lw=2, label="TLS depth", c="k", ls="--")
+        ax.axhline(
+            yline,
+            0,
+            1,
+            lw=2,
+            label=f"TLS depth={(1-yline)*1e3:.2f} ppt",
+            c="k",
+            ls="--",
+        )
         ax.axvline(
             0.5 - tls_results.duration / 2,
             0,
@@ -664,9 +673,7 @@ def plot_tql(
         """
         means = []
         start, end = 0, 1
-        chunks = np.arange(
-            start, end, tls_results.duration / tls_results.period
-        )
+        chunks = np.arange(start, end, width)
         for n, x in enumerate(chunks):
             if n == 0:
                 x1 = start
@@ -683,13 +690,12 @@ def plot_tql(
             means.append(mean)
         secthresh = 3 * np.nanstd(means)
         fold2.bin(nbins).scatter(
-            ax=ax,
-            s=30,
-            label=f"secthresh={secthresh*1e3:.2f} ppt",
-            # label=f"{bin_hr}-hr bin",
-            zorder=2,
+            ax=ax, s=30, label=f"secthresh={secthresh*1e3:.2f} ppt", zorder=2
         )
-        ax.set_xlim(0.5 - width * 1.5, 0.5 + width * 1.5)
+        ax.set_xlim(
+            0.5 - tls_results.duration / 2 * 1.3,
+            0.5 + tls_results.duration / 2 * 1.3,
+        )
         ax.set_xlabel("Phase [days]")
         ax.legend()
 
@@ -961,7 +967,8 @@ def plot_tql(
         if l.toiid is not None:
             title = f"TOI {l.toiid} | TIC {l.ticid} (sector {l.sector})"
             if l.toi_params["Comments"]:
-                msg += f"Comment: {l.toi_params['Comments']}"
+                comment = f"Comment: {l.toi_params['Comments']}"
+                msg += "\n".join(textwrap.wrap(comment, 60))
         else:
             title = f"TIC {l.ticid} (sector {l.sector})"
 
