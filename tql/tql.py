@@ -532,6 +532,17 @@ def plot_tql(
             n_transits_min=2,  # default
         )
 
+        # if l.toi_params["Depth (ppm)"] is None:
+        #     per = tls_results.period
+        #     t0 = tls_results.T0
+        #     depth = 1-tls_results.depth
+        #     t14 = tls_results.duration
+        # else:
+        #     per = l.toi_params["Period (days)"]
+        #     t0 = l.toi_params["Epoch (BJD)"]
+        #     t14 = l.toi_params["Duration (hours)"]/24
+        #     depth = l.toi_params["Depth (ppm)"]/1e6
+
         label = f"peak={tls_results.period:.3f}"
         ax.axvline(tls_results.period, alpha=0.4, lw=3, label=label)
         ax.set_xlim(np.min(tls_results.periods), np.max(tls_results.periods))
@@ -573,37 +584,36 @@ def plot_tql(
         )
         flat[tmask].scatter(ax=ax, label="transit", c="r", alpha=0.5, zorder=1)
 
-        # +++++++++++++++++++++ax6: phase-folded at orbital period
-        ax = fig.add_subplot(3, 3, 6)
-        # binned phase folded lc
+        # # +++++++++++++++++++++ax6: phase-folded at orbital period
+        # ax = fig.add_subplot(3, 3, 6)
+        # # binned phase folded lc
         fold = flat.fold(period=tls_results.period, t0=tls_results.T0)
-        fold.scatter(
-            ax=ax, c="k", alpha=alpha, label="folded at Porb", zorder=1
-        )
-        fold.bin(nbins).scatter(
-            ax=ax, s=30, label=f"{bin_hr}-hr bin", zorder=2
-        )
-
-        # TLS transit model
-        ax.plot(
-            tls_results.model_folded_phase - offset,
-            tls_results.model_folded_model,
-            color="red",
-            zorder=3,
-            label="TLS model",
-        )
-        ax.set_xlabel("Phase [days]")
-        ax.set_ylabel("Relative flux")
+        # fold.scatter(
+        #     ax=ax, c="k", alpha=alpha, label="folded at Porb", zorder=1
+        # )
+        # fold.bin(nbins).scatter(
+        #     ax=ax, s=30, label=f"{bin_hr}-hr bin", zorder=2
+        # )
+        # # TLS transit model
+        # ax.plot(
+        #     tls_results.model_folded_phase - offset,
+        #     tls_results.model_folded_model,
+        #     color="red",
+        #     zorder=3,
+        #     label="TLS model",
+        # )
+        # ax.set_xlabel("Phase [days]")
+        # ax.set_ylabel("Relative flux")
         width = tls_results.duration / tls_results.period
-        ax.set_xlim(-width * 1.5, width * 1.5)
-        ax.legend()
+        # ax.set_xlim(-width * 1.5, width * 1.5)
+        # ax.legend()
 
         # +++++++++++++++++++++ax: odd-even
-        ax = fig.add_subplot(3, 3, 7)
+        ax = fig.add_subplot(3, 3, 6)
         yline = tls_results.depth
         fold.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
         fold[fold.even_mask].bin(nbins).scatter(
-            label="even", s=30, ax=ax, zorder=2
+            label="even transit", s=30, ax=ax, zorder=2
         )
         ax.plot(
             tls_results.model_folded_phase - offset,
@@ -614,10 +624,72 @@ def plot_tql(
         )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
         fold[fold.odd_mask].bin(nbins).scatter(
-            label="odd", s=30, ax=ax, zorder=3
+            label="odd transit", s=30, ax=ax, zorder=3
         )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
         ax.set_xlim(-width * 1.5, width * 1.5)
+        ax.set_xlabel("Phase [days]")
+        ax.legend()
+
+        # +++++++++++++++++++++ax: secondary eclipse
+        ax = fig.add_subplot(3, 3, 7)
+        # mask transit and shift phase
+        fold2 = flat[~tmask].fold(
+            period=tls_results.period,
+            t0=tls_results.T0 + tls_results.period / 2,
+        )
+        fold2.time = fold2.time + 0.5
+        fold2.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
+        ax.axhline(yline, 0, 1, lw=2, label="TLS depth", c="k", ls="--")
+        ax.axvline(
+            0.5 - tls_results.duration / 2,
+            0,
+            1,
+            label="__nolegend__",
+            c="k",
+            ls="--",
+        )
+        ax.axvline(
+            0.5 + tls_results.duration / 2,
+            0,
+            1,
+            label="__nolegend__",
+            c="k",
+            ls="--",
+        )
+        """
+        Similar to Mayo+2018, we computed `secthresh` by binning the phase-folded 
+        lightcurves by measuring the transit duration and taking thrice the value 
+        of the standard deviation of the mean in each bin. 
+        """
+        means = []
+        start, end = 0, 1
+        chunks = np.arange(
+            start, end, tls_results.duration / tls_results.period
+        )
+        for n, x in enumerate(chunks):
+            if n == 0:
+                x1 = start
+                x2 = x
+            elif n == len(chunks):
+                x1 = x
+                x2 = end
+            else:
+                x1 = chunks[n - 1]
+                x2 = x
+            idx = (fold2.phase > x1) & (fold2.phase < x2)
+            mean = np.nanmean(fold2.flux[idx])
+            # print(mean)
+            means.append(mean)
+        secthresh = 3 * np.nanstd(means)
+        fold2.bin(nbins).scatter(
+            ax=ax,
+            s=30,
+            label=f"secthresh={secthresh*1e3:.2f} ppt",
+            # label=f"{bin_hr}-hr bin",
+            zorder=2,
+        )
+        ax.set_xlim(0.5 - width * 1.5, 0.5 + width * 1.5)
         ax.set_xlabel("Phase [days]")
         ax.legend()
 

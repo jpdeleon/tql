@@ -7,7 +7,7 @@
 
 Transit Quick Look plot generator.
 `tql` handles TESS short cadence data (from [SPOC](https://archive.stsci.edu/hlsp/tess-spoc) pipeline) and long cadence data (from [QLP](http://archive.stsci.edu/hlsp/qlp), [CDIPS](http://archive.stsci.edu/hlsp/cdips), [PATHOS](http://archive.stsci.edu/hlsp/qlp), [DIAmante](http://archive.stsci.edu/hlsp/diamante), and custom pipelines) light curves.
-`kql` handles K2 short cadence (SPOC pipeline) and long cadence ([EVEREST](https://archive.stsci.edu/hlsp/everest), [K2SFF](https://archive.stsci.edu/hlsp/)). 
+`kql` handles K2 short cadence (SPOC pipeline) and long cadence ([EVEREST](https://archive.stsci.edu/hlsp/everest), [K2SFF](https://archive.stsci.edu/hlsp/)).
 Note that [chronos](https://github.com/jpdeleon/chronos) is a dependency.
 
 ## Run at Google colab
@@ -104,9 +104,9 @@ The generated figure shows 9 panels (see plot below):
 * middle row
   * left: flattened lightcurve and transit (determined from TLS on the right)
   * middle: TLS periodogram
-  * right: phase-folded lightcurve at orbital period
+  * right: phase-folded lightcurve at orbital period of odd and even transits with transit depth reference
 * bottom row
-  * left: phase-folded lightcurve of odd and even transits with transit depth reference
+  * left: phase-folded lightcurve zoomed at phase 0.5 to see secondary eclipse
   * middle: tpf with overlaid TESS aperture and annotated gaia sources
   * right: summary info
 
