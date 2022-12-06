@@ -885,17 +885,20 @@ def plot_tql(
             msg += f"Contamination ratio={tp.contratio:.2f}% (from TIC)\n"
         else:
             msg += f"Contamination ratio={l.contratio:.2f}% (TIC={tp.contratio:.2f}%)\n"
-        ax.text(0, 0, msg, fontsize=10)
-        ax.axis("off")
 
         if l.toiid is not None:
             title = f"TOI {l.toiid} | TIC {l.ticid} (sector {l.sector})"
+            if l.toi_params["Comments"]:
+                msg += f"Comment: {l.toi_params['Comments']}"
         else:
             title = f"TIC {l.ticid} (sector {l.sector})"
 
+        ax.text(0, 0, msg, fontsize=10)
+        ax.axis("off")
+
         if find_cluster:
             if is_gaiaid_in_cluster(
-                l.gaiaid, catalog_name="CantatGaudin2020", verbose=True
+                l.gaiaid, catalog_name="He2022b", verbose=True
             ):
                 # function prints output
                 cluster_params = l.get_cluster_membership()

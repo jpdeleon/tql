@@ -19,9 +19,9 @@ jobs:
           python -m pip install -U pip
           python -m pip install -r .github/workflows/requirements.txt
 
-      - name: Execute the notebooks
-        run: |
-          jupytext --to ipynb --execute docs/tutorials/*.py
+      #- name: Execute the notebooks
+      #  run: |
+      #    jupytext --to ipynb --execute docs/tutorials/*.py
 
       - uses: actions/upload-artifact@v2
         with:
