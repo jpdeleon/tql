@@ -480,13 +480,12 @@ def plot_tql(
             zorder=3,
         )
         phase = ((time / best_period) % 1) - offset
-
         label += "folded at Prot"
         # plot phase-folded lc with masked transits
         a = ax.scatter(
-            (phase * best_period)[~tmask] * best_period,
+            (phase * best_period)[~tmask],
             dlc.flux[~tmask],
-            c=dlc.time[~tmask] * best_period,
+            c=dlc.time[~tmask],
             label=label,
             cmap=pl.get_cmap("Blues"),
         )
