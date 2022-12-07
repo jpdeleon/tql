@@ -376,8 +376,8 @@ def plot_tql(
         _ = lc.scatter(ax=ax, label="raw")
         trend.plot(
             ax=ax,
-            label=f"trend\nmethod={flatten_method}\n(window_size={window_length:.2f})",
-            lw=1,
+            label=f"baseline trend\nmethod={flatten_method}\n(window_size={window_length:.2f})",
+            lw=2,
             c="r",
         )
 
@@ -484,9 +484,9 @@ def plot_tql(
         label += "folded at Prot"
         # plot phase-folded lc with masked transits
         a = ax.scatter(
-            (phase * best_period)[~tmask],
+            (phase * best_period)[~tmask] * best_period,
             dlc.flux[~tmask],
-            c=dlc.time[~tmask],
+            c=dlc.time[~tmask] * best_period,
             label=label,
             cmap=pl.get_cmap("Blues"),
         )
@@ -497,7 +497,7 @@ def plot_tql(
         ax.legend()
         ax.set_xlim(-best_period / 2, best_period / 2)
         ax.set_ylabel("Normalized Flux")
-        ax.set_xlabel("Phase [days]")
+        ax.set_xlabel("Phase")
 
         # +++++++++++++++++++++ax5: TLS periodogram
         ax = fig.add_subplot(3, 3, 5)
@@ -592,7 +592,7 @@ def plot_tql(
         #     zorder=3,
         #     label="TLS model",
         # )
-        # ax.set_xlabel("Phase [days]")
+        # ax.set_xlabel("")
         # ax.set_ylabel("Relative flux")
         # width = tls_results.duration / tls_results.period
         # ax.set_xlim(-width * 1.5, width * 1.5)
@@ -601,6 +601,7 @@ def plot_tql(
         # +++++++++++++++++++++ax: odd-even
         ax = fig.add_subplot(3, 3, 7)
         yline = tls_results.depth
+        # fold.phase = fold.phase*tls_results.period
         fold.scatter(
             ax=ax, marker=".", c="k", alpha=alpha, label="_nolegend_", zorder=1
         )
@@ -619,11 +620,12 @@ def plot_tql(
             label="TLS model",
         )
         ax.axhline(yline, 0, 1, lw=2, ls="--", c="k")
-        t14 = tls_results.duration
+        # transit duration in phase
+        t14 = tls_results.duration / tls_results.period
         ax.axvline(-t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
         ax.axvline(t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
-        ax.set_xlabel("Phase [days]")
-        ax.set_xlim(-t14, t14)
+        ax.set_xlabel("Phase")
+        ax.set_xlim(-t14 * 2, t14 * 2)
         # y1, y2 = ax.get_ylim()
         ax.legend()
 
@@ -635,6 +637,7 @@ def plot_tql(
             t0=tls_results.T0 + tls_results.period / 2,
         )
         fold2.time = fold2.time + 0.5
+        # fold2.phase = fold2.phase*tls_results.period
         fold2.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
         ax.axhline(
             yline,
@@ -645,8 +648,13 @@ def plot_tql(
             c="k",
             ls="--",
         )
-        ax.axvline(0.5 - t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
-        ax.axvline(0.5 + t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--")
+        half_phase = 0.5  # *tls_results.period
+        ax.axvline(
+            half_phase - t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--"
+        )
+        ax.axvline(
+            half_phase + t14 / 2, 0, 1, label="__nolegend__", c="k", ls="--"
+        )
         """
         Similar to Mayo+2018, compute `secthresh` by binning the phase-folded 
         lightcurves by measuring the transit duration and taking thrice the value 
@@ -654,9 +662,7 @@ def plot_tql(
         """
         means = []
         start, end = 0, 1
-        chunks = np.arange(
-            start, end, tls_results.duration / tls_results.period
-        )
+        chunks = np.arange(start, end, t14)
         for n, x in enumerate(chunks):
             if n == 0:
                 x1 = start
@@ -676,8 +682,8 @@ def plot_tql(
         fold2.bin(nbins).scatter(
             ax=ax, s=30, label=f"secthresh={secthresh*1e3:.2f} ppt", zorder=2
         )
-        ax.set_xlabel("Phase [days]")
-        ax.set_xlim(0.5 - t14, 0.5 + t14)
+        ax.set_xlabel("Phase")
+        ax.set_xlim(half_phase - t14 * 2, half_phase + t14 * 2)
         # ax.set_ylim(y1, y2)
         ax.legend()
 
@@ -948,7 +954,7 @@ def plot_tql(
 
         if l.toiid is not None:
             title = f"TOI {l.toiid} | TIC {l.ticid} (sector {l.sector})"
-            if l.toi_params["Comments"]:
+            if l.toi_params["Comments"] or l.toi_params["Comments"] != "nan":
                 comment = f"Comment: {l.toi_params['Comments']}"
                 msg += "\n".join(textwrap.wrap(comment, 50))
         else:
