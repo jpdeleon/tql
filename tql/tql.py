@@ -601,9 +601,7 @@ def plot_tql(
         ax = fig.add_subplot(3, 3, 7)
         yline = tls_results.depth
         # fold.phase = fold.phase*tls_results.period
-        fold.scatter(
-            ax=ax, marker=".", c="k", alpha=alpha, label="_nolegend_", zorder=1
-        )
+        fold.scatter(ax=ax, c="k", alpha=alpha, label="_nolegend_", zorder=1)
         fold[fold.even_mask].bin(nbins).scatter(
             label="even transit", c="#1f77b4", s=30, ax=ax, zorder=2
         )
@@ -870,17 +868,10 @@ def plot_tql(
         msg = "\nCandidate Properties\n"
         msg += "-" * 30 + "\n"
         # secs = ','.join(map(str, l.all_sectors))
-        nsecs = len(l.all_sectors)
-        if nsecs < 5:
-            msg += f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors}, {lctype.upper()} pipeline)\n"
-        else:
-            msg += f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors[:nsecs//2]}"
-            msg += (
-                "\n"
-                + f"{l.all_sectors[nsecs//2:]}, {lctype.upper()} pipeline)\n"
-            )
+        text = f"SDE={tls_results.SDE:.4f} (sector={l.sector} in {l.all_sectors}, {lctype.upper()} pipeline)"
+        msg += "\n".join(textwrap.wrap(text, 60))
         msg += (
-            f"Period={tls_results.period:.4f}+/-{tls_results.period_uncertainty:.4f} d"
+            f"\nPeriod={tls_results.period:.4f}+/-{tls_results.period_uncertainty:.4f} d"
             + " " * 5
         )
         msg += f"Duration={tls_results.duration*24:.2f} hr" + "\n"
@@ -955,11 +946,11 @@ def plot_tql(
             title = f"TOI {l.toiid} | TIC {l.ticid} (sector {l.sector})"
             if l.toi_params["Comments"] or l.toi_params["Comments"] != "nan":
                 comment = f"Comment: {l.toi_params['Comments']}"
-                msg += "\n".join(textwrap.wrap(comment, 50))
+                msg += "\n".join(textwrap.wrap(comment, 60))
         else:
             title = f"TIC {l.ticid} (sector {l.sector})"
-
-        ax.text(0, 0, msg, fontsize=10)
+        ax.axis([0, 10, 0, 10])
+        ax.text(-1, 11, msg, ha="left", va="top", fontsize=10, wrap=True)
         ax.axis("off")
 
         if find_cluster:
