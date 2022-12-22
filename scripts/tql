@@ -215,7 +215,7 @@ parser.add_argument(
     "-age",
     "--gyro_age",
     action="store_true",
-    help="estimate spectral type",
+    help="estimate gyro age using stardate",
     default=False,
 )
 # prints help if no argument supplied
