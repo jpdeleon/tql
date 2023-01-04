@@ -801,8 +801,10 @@ def plot_tql(
         # add details to tls_results
         tls_results["time_raw"] = lc.time
         tls_results["flux_raw"] = lc.flux
+        tls_results["err_raw"] = lc.flux_err
         tls_results["time_flat"] = flat.time
         tls_results["flux_flat"] = flat.flux
+        tls_results["err_flat"] = flat.flux_err
         tls_results["ticid"] = l.ticid
         tls_results["sector"] = l.sector
         tls_results["cont_ratio"] = l.contratio
