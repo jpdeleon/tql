@@ -30,7 +30,6 @@ import flammkuchen as fk
 from chronos.gls import Gls
 from chronos.lightcurve import ShortCadence, LongCadence
 from chronos.star import Star
-from chronos.qlp import QLP
 from chronos.plot import plot_gaia_sources_on_tpf, plot_gaia_sources_on_survey
 from chronos.constants import TESS_TIME_OFFSET, TESS_pix_scale
 from chronos.utils import (
@@ -40,7 +39,7 @@ from chronos.utils import (
     is_gaiaid_in_cluster,
 )
 
-LC_TYPES = ["custom", "cdips", "pathos", "qlp", "diamante"]
+LC_TYPES = ["custom", "cdips", "pathos", "qlp", "diamante", "tglc"]
 SC_TYPES = ["pdcsap", "sap", "custom"]
 
 size = 16
@@ -59,7 +58,8 @@ pl.rcParams.update(params)
 
 def plot_tql(
     ticid=None,
-    gaiaid=None,
+    gaia2id=None,
+    gaia3id=None,
     toiid=None,
     coords=None,
     name=None,
@@ -179,7 +179,8 @@ def plot_tql(
             errmsg = f"{lctype} is not available in cadence=long"
             assert lctype in lctypes, errmsg
             lightcurve = LongCadence(
-                gaiaDR2id=gaiaid,
+                gaiaDR2id=gaia2id,
+                gaiaDR3id=gaia3id,
                 toiid=toiid,
                 ticid=ticid,
                 name=name,
@@ -210,7 +211,8 @@ def plot_tql(
             assert lctype in lctypes, errmsg
             alpha = 0.1
             lightcurve = ShortCadence(
-                gaiaDR2id=gaiaid,
+                gaiaDR2id=gaia2id,
+                gaiaDR3id=gaia3id,
                 toiid=toiid,
                 ticid=ticid,
                 ra_deg=target_coord.ra.deg if target_coord else None,
@@ -271,6 +273,9 @@ def plot_tql(
         elif lctype == "diamante":
             lc = l.get_diamante_lc()
             l.aper_mask = l.diamante.get_aper_mask_diamante()
+        elif lctype == "tglc":
+            lc = l.get_tglc_lc()
+            l.aper_mask = l.tglc.get_aper_mask_tglc()
         else:
             errmsg = f"use lctype=[{np.unique(np.array([SC_TYPES,LC_TYPES]))}]"
             raise ValueError(errmsg)

@@ -9,7 +9,8 @@ from tql import tql
 log = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser(description="create tql based on chronos")
-parser.add_argument("-gaia", type=int, help="Gaia DR2 ID", default=None)
+parser.add_argument("-gaia2id", type=int, help="Gaia DR2 ID", default=None)
+parser.add_argument("-gaia3id", type=int, help="Gaia DR3 ID", default=None)
 parser.add_argument("-toi", type=int, help="TOI ID", default=None)
 parser.add_argument("-tic", type=int, help="TIC ID", default=None)
 parser.add_argument(
@@ -43,7 +44,16 @@ parser.add_argument(
     "--lctype",
     type=str,
     help="type of lightcurve",
-    choices=["pdcsap", "sap", "custom", "cdips", "pathos", "qlp", "diamante"],
+    choices=[
+        "pdcsap",
+        "sap",
+        "custom",
+        "cdips",
+        "pathos",
+        "qlp",
+        "tglc",
+        "diamante",
+    ],
     default=None,
 )
 # parser.add_argument(
@@ -223,7 +233,8 @@ args = parser.parse_args(None if sys.argv[1:] else ["-h"])
 
 if __name__ == "__main__":
     fig = tql.plot_tql(
-        gaiaid=args.gaia,
+        gaia2id=args.gaia2id,
+        gaia3id=args.gaia3id,
         toiid=args.toi,
         ticid=args.tic,
         ephem_mask=args.ephem_mask,
