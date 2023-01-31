@@ -6,7 +6,7 @@
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 Transit Quick Look plot generator.
-`tql` handles TESS short cadence data (from [SPOC](https://archive.stsci.edu/hlsp/tess-spoc) pipeline) and long cadence data (from [QLP](http://archive.stsci.edu/hlsp/qlp), [CDIPS](http://archive.stsci.edu/hlsp/cdips), [PATHOS](http://archive.stsci.edu/hlsp/qlp), [DIAmante](http://archive.stsci.edu/hlsp/diamante), and custom pipelines) light curves.
+`tql` handles TESS short cadence data (from [SPOC](https://archive.stsci.edu/hlsp/tess-spoc) pipeline) and long cadence data (from [QLP](http://archive.stsci.edu/hlsp/qlp), [TGLC](https://archive.stsci.edu/hlsp/tglc), [CDIPS](http://archive.stsci.edu/hlsp/cdips), [PATHOS](http://archive.stsci.edu/hlsp/qlp), [DIAmante](http://archive.stsci.edu/hlsp/diamante), and custom pipelines) light curves.
 `kql` handles K2 short cadence (SPOC pipeline) and long cadence ([EVEREST](https://archive.stsci.edu/hlsp/everest), [K2SFF](https://archive.stsci.edu/hlsp/)).
 Note that [chronos](https://github.com/jpdeleon/chronos) is a dependency.
 
@@ -22,7 +22,8 @@ Outputs are available at [tql-gallery](https://jpdeleon.github.io/tql-gallery)
 ```shell
 optional arguments:
   -h, --help            show this help message and exit
-  -gaia GAIA            Gaia DR2 ID
+  -gaia2id GAIA2ID      Gaia DR2 ID
+  -gaia3id GAIA3ID      Gaia DR3 ID
   -toi TOI              TOI ID
   -tic TIC              TIC ID
   -coords COORDS COORDS
@@ -34,7 +35,7 @@ optional arguments:
                         30-min long or 2-min short (default)
   -sr SEARCH_RADIUS, --search_radius SEARCH_RADIUS
                         search radius in arcsec (default=3)
-  -lc {pdcsap,sap,custom,cdips,pathos,qlp,diamante}, --lctype {pdcsap,sap,custom,cdips,pathos,qlp,diamante}
+  -lc {pdcsap,sap,custom,cdips,pathos,qlp,tglc,diamante}, --lctype {pdcsap,sap,custom,cdips,pathos,qlp,tglc,diamante}
                         type of lightcurve
   -a {pipeline,round,square,percentile,threshold}, --aper_mask {pipeline,round,square,percentile,threshold}
                         aperture mask type
@@ -83,6 +84,8 @@ optional arguments:
                         check if target is in variable star catalog
   -em EPHEM_MASK EPHEM_MASK EPHEM_MASK, --ephem_mask EPHEM_MASK EPHEM_MASK EPHEM_MASK
                         mask ephemeris given period and t0
+  -st, --spec_type      estimate spectral type
+  -age, --gyro_age      estimate gyro age using stardate
 ```
 
 ![img](./docs/img/TOI241_s02_pdcsap_sc.png)
