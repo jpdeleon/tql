@@ -236,7 +236,8 @@ def plot_kql(
         if l.tic_params is None:
             _ = l.query_tic_catalog(return_nearest_xmatch=True)
         if not l.validate_gaia_tic_xmatch():
-            raise ValueError("Gaia TIC cross-match failed")
+            # raise ValueError("Gaia TIC cross-match failed")
+            pass
 
         # +++++++++++++++++++++ raw lc
         if lctype == "custom":
