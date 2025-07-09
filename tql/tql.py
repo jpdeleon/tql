@@ -36,7 +36,7 @@ from chronos.utils import (
     parse_aperture_mask,
     get_fluxes_within_mask,
     get_transit_mask,
-    is_gaiaid_in_cluster,
+    is_gaia2id_in_cluster,
 )
 
 LC_TYPES = ["custom", "cdips", "pathos", "qlp", "diamante", "tglc"]
@@ -105,7 +105,7 @@ def plot_tql(
     Args:
         ticid (int): TIC ID
         toiid (int, optional): TESS Object of Interest ID.
-        gaiaid (int, optional): Gaia DR2 ID.
+        gaia2id (int, optional): Gaia DR2 ID.
         coords (tuple, optional): RA and Dec of the target in decimal degrees.
         name (str, optional): Target name parsed by Simbad.
         ephem_mask (list, optional): mask given (``period``, ``t0``, ``tdur``). Defaults to None.
@@ -179,8 +179,8 @@ def plot_tql(
             errmsg = f"{lctype} is not available in cadence=long"
             assert lctype in lctypes, errmsg
             lightcurve = LongCadence(
-                gaiaDR2id=gaia2id,
-                gaiaDR3id=gaia3id,
+                gaia2id=gaia2id,
+                gaia3id=gaia3id,
                 toiid=toiid,
                 ticid=ticid,
                 name=name,
@@ -211,8 +211,8 @@ def plot_tql(
             assert lctype in lctypes, errmsg
             alpha = 0.1
             lightcurve = ShortCadence(
-                gaiaDR2id=gaia2id,
-                gaiaDR3id=gaia3id,
+                gaia2id=gaia2id,
+                gaia3id=gaia3id,
                 toiid=toiid,
                 ticid=ticid,
                 ra_deg=target_coord.ra.deg if target_coord else None,
@@ -733,7 +733,7 @@ def plot_tql(
                 ax = fig.add_subplot(3, 3, 6, projection=WCS(hdu.header))
                 _ = plot_gaia_sources_on_survey(
                     tpf=tpf,
-                    target_gaiaid=l.gaiaid,
+                    target_gaia2id=l.gaia2id,
                     gaia_sources=l.gaia_sources,
                     kmax=1,
                     depth=1 - tls_results.depth,
@@ -753,7 +753,7 @@ def plot_tql(
                 ax = fig.add_subplot(3, 3, 6)
                 _ = plot_gaia_sources_on_tpf(
                     tpf=tpf,
-                    target_gaiaid=l.gaiaid,
+                    target_gaia2id=l.gaia2id,
                     gaia_sources=l.gaia_sources,
                     kmax=1,
                     depth=1 - tls_results.depth,
@@ -771,7 +771,7 @@ def plot_tql(
             ax = fig.add_subplot(3, 3, 6)
             _ = plot_gaia_sources_on_tpf(
                 tpf=tpf,
-                target_gaiaid=l.gaiaid,
+                target_gaia2id=l.gaia2id,
                 gaia_sources=l.gaia_sources,
                 kmax=1,
                 depth=1 - tls_results.depth,
@@ -905,7 +905,8 @@ def plot_tql(
         msg += "-" * 30 + "\n"
         msg += f"TIC ID={l.ticid}" + " " * 5
         msg += f"Tmag={tp.Tmag:.2f}\n"
-        msg += f"Gaia DR2 ID={l.gaiaid}\n"
+        msg += f"Gaia DR2 ID={l.gaia2id}\n"
+        msg += f"Gaia DR3 ID={l.gaia3id}\n"
         msg += f"Parallax={gp.parallax:.4f} mas = {100/gp.parallax:.1f} pc\n"
         msg += f"GOF_AL={gp.astrometric_gof_al:.2f} (hints binarity if >20)\n"
         D = gp.astrometric_excess_noise_sig
@@ -961,8 +962,8 @@ def plot_tql(
         ax.axis("off")
 
         if find_cluster:
-            if is_gaiaid_in_cluster(
-                l.gaiaid, catalog_name="He2022b", verbose=True
+            if is_gaia2id_in_cluster(
+                l.gaia2id, catalog_name="He2022b", verbose=True
             ):
                 # function prints output
                 cluster_params = l.get_cluster_membership()
@@ -982,7 +983,8 @@ def plot_tql(
                 msg += f"Saved: {fp}_gls.png\n"
 
         if savetls:
-            tls_results["gaiaid"] = l.gaiaid
+            tls_results["gaia2id"] = l.gaia2id
+            tls_results["gaia2id"] = l.gaia3id
             tls_results["ticid"] = l.ticid
             fk.save(fp + "_tls.h5", tls_results)
             msg += f"Saved: {fp}_tls.h5\n"

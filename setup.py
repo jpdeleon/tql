@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 setup(
     name="tql",
     packages=["tql"],  # find_packages()
-    version="0.1.1",
+    version="1.0",
     author="Jerome de Leon",
     author_email="jpdeleon@astron.s.u-tokyo.ac.jp",
     url="https://github.com/jpdeleon/tql",
