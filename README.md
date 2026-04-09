@@ -1,9 +1,4 @@
-# TQL
-
-[![readthedocs](https://readthedocs.org/projects/tql/badge/?version=latest)](https://tql.readthedocs.io/en/latest/)
-[![Build Status](https://travis-ci.com/jpdeleon/tql.svg?branch=master)](https://travis-ci.com/jpdeleon/tql)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
-[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+# TQL (deprecated) --> See [quicklook](https://github.com/jpdeleon/quicklook)
 
 Transit Quick Look plot generator.
 `tql` handles TESS short cadence data (from [SPOC](https://archive.stsci.edu/hlsp/tess-spoc) pipeline) and long cadence data (from [QLP](http://archive.stsci.edu/hlsp/qlp), [TGLC](https://archive.stsci.edu/hlsp/tglc), [CDIPS](http://archive.stsci.edu/hlsp/cdips), [PATHOS](http://archive.stsci.edu/hlsp/qlp), [DIAmante](http://archive.stsci.edu/hlsp/diamante), and custom pipelines) light curves.
